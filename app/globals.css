@@ -1,0 +1,315 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-slate-950 text-slate-100 antialiased;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  @apply bg-brand-500 text-white;
+}
+
+:root {
+  --brand: #1E3A8A;
+}
+
+.hero-overlay {
+  background: linear-gradient(120deg, rgba(2, 6, 23, 0.88), rgba(30, 41, 59, 0.55));
+}
+
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card-hover:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+}
+
+/* Premium Service Cards */
+.service-card {
+  position: relative;
+  cursor: pointer;
+  transition: all 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  outline: none;
+}
+
+.service-card:hover {
+  transform: translateY(-10px) scale(1.02);
+  box-shadow: 
+    0 25px 50px rgba(15, 23, 42, 0.3),
+    0 0 40px rgba(30, 58, 138, 0.25);
+  border-color: rgba(30, 58, 138, 0.5);
+}
+
+.service-card:active {
+  transform: scale(0.98);
+}
+
+.service-card:focus-visible {
+  outline: 2px solid #F59E0B;
+  outline-offset: 2px;
+}
+
+/* Service Card Icon */
+.service-card-icon {
+  transition: all 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.service-card:hover .service-card-icon {
+  color: #F59E0B;
+  transform: scale(1.1);
+}
+
+/* Service Card Title */
+.service-card-title {
+  transition: color 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.service-card:hover .service-card-title {
+  color: #F59E0B;
+}
+
+/* Service Card Arrow */
+.service-card-arrow {
+  display: inline-block;
+  transition: transform 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin-left: 0.5rem;
+}
+
+.service-card:hover .service-card-arrow {
+  transform: translateX(6px);
+}
+
+/* Service Card Link */
+.service-card-link {
+  transition: color 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.service-card:hover .service-card-link {
+  color: #F59E0B;
+}
+
+/* Responsive: Disable hover effects on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .service-card:hover {
+    transform: none;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+    border-color: inherit;
+  }
+  
+  .service-card:hover .service-card-title {
+    color: inherit;
+  }
+  
+  .service-card:hover .service-card-icon {
+    color: inherit;
+    transform: none;
+  }
+  
+  .service-card:hover .service-card-arrow {
+    transform: none;
+  }
+}
+
+/* Page Transitions */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(30, 58, 138, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(30, 58, 138, 0);
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+/* Image Zoom Effect */
+.image-zoom {
+  transition: transform 0.4s ease;
+}
+
+.image-zoom:hover {
+  transform: scale(1.05);
+}
+
+.image-zoom-slow {
+  transition: transform 0.6s ease;
+}
+
+.image-zoom-slow:hover {
+  transform: scale(1.08);
+}
+
+/* Loading Animation */
+.skeleton {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0) 40%
+  );
+  background-size: 1000px 100%;
+}
+
+.spinner {
+  border: 3px solid rgba(30, 58, 138, 0.1);
+  border-radius: 50%;
+  border-top: 3px solid rgb(30, 58, 138);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Smooth Button Transitions */
+.button-transition {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.button-transition:hover {
+  transform: translateY(-2px);
+}
+
+.button-transition:active {
+  transform: scale(0.98);
+}
+
+/* Gradient Text Animation */
+.gradient-text {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 1) 0%, rgba(30, 58, 138, 1) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Underline Animation */
+.underline-animate {
+  position: relative;
+}
+
+.underline-animate::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: rgb(30, 58, 138);
+  transition: width 0.3s ease;
+}
+
+.underline-animate:hover::after {
+  width: 100%;
+}
+
+/* Card Fade Animation */
+.fade-in-up {
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+.fade-in {
+  animation: fadeIn 0.6s ease forwards;
+}
+
+.slide-in-right {
+  animation: slideInRight 0.6s ease forwards;
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.6s ease forwards;
+}
+
+.zoom-in {
+  animation: zoomIn 0.6s ease forwards;
+}
+
+.float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
