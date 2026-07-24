@@ -1,10 +1,10 @@
 {
   "pages": {
-    "/page": [
+    "/expertise/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/page.css",
-      "static/chunks/app/page.js"
+      "static/css/app/expertise/page.css",
+      "static/chunks/app/expertise/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -12,11 +12,11 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/about/page": [
+    "/industries/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/about/page.css",
-      "static/chunks/app/about/page.js"
+      "static/css/app/industries/page.css",
+      "static/chunks/app/industries/page.js"
     ],
     "/services/page": [
       "static/chunks/webpack.js",
@@ -24,17 +24,17 @@
       "static/css/app/services/page.css",
       "static/chunks/app/services/page.js"
     ],
-    "/industries/page": [
+    "/about/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/industries/page.css",
-      "static/chunks/app/industries/page.js"
+      "static/css/app/about/page.css",
+      "static/chunks/app/about/page.js"
     ],
-    "/expertise/page": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/expertise/page.css",
-      "static/chunks/app/expertise/page.js"
+      "static/css/app/page.css",
+      "static/chunks/app/page.js"
     ],
     "/hseq/page": [
       "static/chunks/webpack.js",

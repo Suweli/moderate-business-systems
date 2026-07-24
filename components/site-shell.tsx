@@ -26,12 +26,63 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showTop, setShowTop] = useState(false);
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterStatus, setNewsletterStatus] = useState<{ type: 'idle' | 'success' | 'error'; message: string }>({
+    type: 'idle',
+    message: '',
+  });
+  const [newsletterSubmitting, setNewsletterSubmitting] = useState(false);
+  const [newsletterStartedAt, setNewsletterStartedAt] = useState(0);
 
   useEffect(() => {
     const onScroll = () => setShowTop(window.scrollY > 400);
     window.addEventListener('scroll', onScroll);
+    setNewsletterStartedAt(Date.now());
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  const handleNewsletterSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    setNewsletterStatus({ type: 'idle', message: '' });
+    setNewsletterSubmitting(true);
+
+    try {
+      const response = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: newsletterEmail,
+          honey: '',
+          startedAt: newsletterStartedAt,
+          pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.message || 'Subscription failed');
+      }
+
+      setNewsletterStatus({
+        type: 'success',
+        message: payload.message || "Thank you for subscribing to the Moderate Business Systems Ltd newsletter. You'll receive updates on our services, company news, industry insights, and career opportunities.",
+      });
+      setNewsletterEmail('');
+      setNewsletterStartedAt(Date.now());
+    } catch (error) {
+      setNewsletterStatus({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'We could not complete your subscription right now. Please try again shortly.',
+      });
+    } finally {
+      setNewsletterSubmitting(false);
+    }
+  };
 
   const isActive = (href: string) => href === '/' ? pathname === '/' : pathname.startsWith(href);
 
@@ -186,12 +237,25 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <h3 className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-brand-300">Newsletter</h3>
-            <div className="mt-3 sm:mt-4 flex flex-col gap-2 sm:gap-3">
-              <input className="rounded-lg border border-slate-700 bg-slate-900/50 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition focus:border-brand-400 focus:bg-slate-900 focus:ring-2 focus:ring-brand-500/30" placeholder="Enter email" />
-              <button className="rounded-lg bg-gradient-to-r from-brand-500 to-brand-600 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white transition hover:from-brand-600 hover:to-brand-700 hover:shadow-lg hover:shadow-brand-500/50 active:scale-95 duration-200">
+            <form className="mt-3 sm:mt-4 flex flex-col gap-2 sm:gap-3" onSubmit={handleNewsletterSubmit}>
+              <input
+                type="email"
+                value={newsletterEmail}
+                onChange={(event) => setNewsletterEmail(event.target.value)}
+                required
+                autoComplete="email"
+                className="rounded-lg border border-slate-700 bg-slate-900/50 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-white placeholder-slate-400 outline-none transition focus:border-brand-400 focus:bg-slate-900 focus:ring-2 focus:ring-brand-500/30"
+                placeholder="Enter email"
+              />
+              <button type="submit" disabled={newsletterSubmitting} className="rounded-lg bg-gradient-to-r from-brand-500 to-brand-600 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-semibold text-white transition hover:from-brand-600 hover:to-brand-700 hover:shadow-lg hover:shadow-brand-500/50 active:scale-95 duration-200 disabled:opacity-70">
                 Subscribe
               </button>
-            </div>
+              {newsletterStatus.type !== 'idle' && (
+                <p className={`text-xs sm:text-sm ${newsletterStatus.type === 'success' ? 'text-brand-300' : 'text-red-400'}`}>
+                  {newsletterStatus.message}
+                </p>
+              )}
+            </form>
 
             {/* Compact Google Map */}
             <div className="hidden lg:block rounded-lg border border-slate-800 overflow-hidden mt-6">
