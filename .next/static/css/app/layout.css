@@ -1063,6 +1063,9 @@ video {
 .border-white\/25 {
   border-color: rgb(255 255 255 / 0.25);
 }
+.border-red-500\/30 {
+  border-color: rgb(239 68 68 / 0.3);
+}
 .border-t-slate-900 {
   --tw-border-opacity: 1;
   border-top-color: rgb(15 23 42 / var(--tw-border-opacity, 1));
@@ -1149,29 +1152,32 @@ video {
 .bg-white\/10 {
   background-color: rgb(255 255 255 / 0.1);
 }
+.bg-red-500\/10 {
+  background-color: rgb(239 68 68 / 0.1);
+}
+.bg-\[url\(\'\/Careers-hero\.jpg\'\)\] {
+  background-image: url('/Careers-hero.jpg');
+}
+.bg-\[url\(\'\/Contact-hero\.jpg\'\)\] {
+  background-image: url('/Contact-hero.jpg');
+}
+.bg-\[url\(\'\/HSEQ-hero\.jpg\'\)\] {
+  background-image: url('/HSEQ-hero.jpg');
+}
+.bg-\[url\(\'\/Industries-hero\.jpg\'\)\] {
+  background-image: url('/Industries-hero.jpg');
+}
+.bg-\[url\(\'\/Testimonials-hero\.jpg\'\)\] {
+  background-image: url('/Testimonials-hero.jpg');
+}
 .bg-\[url\(\'\/about-hero\.jpg\'\)\] {
   background-image: url('/about-hero.jpg');
-}
-.bg-\[url\(\'\/careers-hero\.jpg\'\)\] {
-  background-image: url('/careers-hero.jpg');
-}
-.bg-\[url\(\'\/contact-hero\.jpg\'\)\] {
-  background-image: url('/contact-hero.jpg');
 }
 .bg-\[url\(\'\/expertise-hero\.jpg\'\)\] {
   background-image: url('/expertise-hero.jpg');
 }
-.bg-\[url\(\'\/hseq-hero\.jpg\'\)\] {
-  background-image: url('/hseq-hero.jpg');
-}
-.bg-\[url\(\'\/industries-hero\.jpg\'\)\] {
-  background-image: url('/industries-hero.jpg');
-}
 .bg-\[url\(\'\/services-hero\.jpg\'\)\] {
   background-image: url('/services-hero.jpg');
-}
-.bg-\[url\(\'\/testimonials-hero\.jpg\'\)\] {
-  background-image: url('/testimonials-hero.jpg');
 }
 .bg-\[url\(\'https\:\/\/images\.unsplash\.com\/photo-1517048676732-d65bc937f952\?auto\=format\&fit\=crop\&w\=1600\&q\=80\'\)\] {
   background-image: url('https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=1600&q=80');
@@ -1492,6 +1498,18 @@ video {
 .text-yellow-400 {
   --tw-text-opacity: 1;
   color: rgb(250 204 21 / var(--tw-text-opacity, 1));
+}
+.text-red-600 {
+  --tw-text-opacity: 1;
+  color: rgb(220 38 38 / var(--tw-text-opacity, 1));
+}
+.text-red-400 {
+  --tw-text-opacity: 1;
+  color: rgb(248 113 113 / var(--tw-text-opacity, 1));
+}
+.text-red-300 {
+  --tw-text-opacity: 1;
+  color: rgb(252 165 165 / var(--tw-text-opacity, 1));
 }
 .placeholder-slate-400::-moz-placeholder {
   --tw-placeholder-opacity: 1;
@@ -2200,6 +2218,10 @@ body {
 
 .disabled\:opacity-50:disabled {
   opacity: 0.5;
+}
+
+.disabled\:opacity-70:disabled {
+  opacity: 0.7;
 }
 
 .group:hover .group-hover\:w-2 {

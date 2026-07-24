@@ -10,10 +10,13 @@ import SiteShell from '../../components/site-shell';
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [startedAt, setStartedAt] = useState(0);
   const [formData, setFormData] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
 
   useEffect(() => {
     AOS.init({ duration: 900, once: true, offset: 80 });
+    setStartedAt(Date.now());
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -21,26 +24,60 @@ export default function ContactPage() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = event.currentTarget;
+    const submitData = new FormData(form);
+
+    submitData.set('submissionPage', 'Contact Enquiry');
+    submitData.set('submittedAt', new Date().toISOString());
+    if (typeof window !== 'undefined') {
+      submitData.set('pageUrl', window.location.href);
+    }
+    if (typeof navigator !== 'undefined') {
+      submitData.set('userAgent', navigator.userAgent);
+    }
+
+    setError('');
+    setSubmitted(false);
+
+    // Honeypot and time-trap to reduce bot spam.
+    if ((submitData.get('_honey') as string) || Date.now() - startedAt < 2000) {
+      setError('Submission could not be completed. Please try again.');
+      return;
+    }
+
     setLoading(true);
-    
-    // Simulate form submission
-    setTimeout(() => {
+
+    try {
+      const response = await fetch('https://formsubmit.co/ajax/moderatebiz@yahoo.com', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+        },
+        body: submitData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Submission failed');
+      }
+
       setSubmitted(true);
-      setLoading(false);
       setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
-      
-      // Reset success message after 5 seconds
-      setTimeout(() => setSubmitted(false), 5000);
-    }, 1500);
+      form.reset();
+      setStartedAt(Date.now());
+    } catch {
+      setError('We could not send your message right now. Please try again shortly or email moderatebiz@yahoo.com.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SiteShell>
       <main className="bg-slate-950 text-slate-100">
         <section className="relative isolate overflow-hidden">
-          <div className="absolute inset-0 bg-[url('/contact-hero.jpg')] bg-cover bg-center" />
+          <div className="absolute inset-0 bg-[url('/Contact-hero.jpg')] bg-cover bg-center" />
           <div className="hero-overlay absolute inset-0" />
           <div className="relative mx-auto flex min-h-[calc(100vh-72px)] max-w-7xl flex-col justify-center px-4 sm:px-6 py-16 sm:py-24 lg:px-8">
             <div data-aos="fade-right">
@@ -123,6 +160,9 @@ export default function ContactPage() {
                 Send us a Message
               </h2>
               <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+                <input type="hidden" name="_subject" value="MBS Contact Enquiry" />
+                <input type="hidden" name="_template" value="table" />
+                <input type="text" name="_honey" className="hidden" tabIndex={-1} autoComplete="off" />
                 <div className="grid grid-cols-2 gap-4">
                   <input 
                     type="text"
@@ -134,7 +174,7 @@ export default function ContactPage() {
                     placeholder="Full Name" 
                   />
                   <input 
-                    type="phone"
+                    type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
@@ -176,7 +216,12 @@ export default function ContactPage() {
                 </button>
                 {submitted && (
                   <div className="rounded-lg bg-green-500/10 border border-green-500/30 p-4">
-                    <p className="text-sm text-green-300 font-semibold">✓ Message sent successfully! We'll get back to you soon.</p>
+                    <p className="text-sm text-green-300 font-semibold">Thank you for contacting Moderate Business Systems Ltd. Your submission has been received successfully. Our team will review it and get back to you as soon as possible.</p>
+                  </div>
+                )}
+                {error && (
+                  <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-4">
+                    <p className="text-sm text-red-300 font-semibold">{error}</p>
                   </div>
                 )}
               </form>

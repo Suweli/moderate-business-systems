@@ -8,21 +8,68 @@ import SiteShell from '../../components/site-shell';
 
 export default function CareersPage() {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [startedAt, setStartedAt] = useState(0);
 
   useEffect(() => {
     AOS.init({ duration: 900, once: true, offset: 80 });
+    setStartedAt(Date.now());
   }, []);
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setSubmitted(true);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    formData.set('submissionPage', 'Careers Application');
+    formData.set('submittedAt', new Date().toISOString());
+    if (typeof window !== 'undefined') {
+      formData.set('pageUrl', window.location.href);
+    }
+    if (typeof navigator !== 'undefined') {
+      formData.set('userAgent', navigator.userAgent);
+    }
+
+    setError('');
+    setSubmitted(false);
+
+    // Honeypot and time-trap to reduce bot spam.
+    if ((formData.get('_honey') as string) || Date.now() - startedAt < 2000) {
+      setError('Submission could not be completed. Please try again.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch('https://formsubmit.co/ajax/moderatebiz@yahoo.com', {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Submission failed');
+      }
+
+      setSubmitted(true);
+      form.reset();
+      setStartedAt(Date.now());
+    } catch {
+      setError('We could not send your application right now. Please try again shortly or email moderatebiz@yahoo.com.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <SiteShell>
       <main className="bg-slate-950 text-slate-100">
         <section className="relative isolate overflow-hidden">
-          <div className="absolute inset-0 bg-[url('/careers-hero.jpg')] bg-cover bg-center" />
+          <div className="absolute inset-0 bg-[url('/Careers-hero.jpg')] bg-cover bg-center" />
           <div className="hero-overlay absolute inset-0" />
           <div className="relative mx-auto flex min-h-[calc(100vh-72px)] max-w-7xl flex-col justify-center px-4 sm:px-6 py-16 sm:py-24 lg:px-8">
             <div data-aos="fade-right">
@@ -75,13 +122,17 @@ export default function CareersPage() {
             <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-8" data-aos="fade-left">
               <h2 className="text-3xl font-semibold text-white">Application Form</h2>
               <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-                <input className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Name" />
-                <input className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Email" />
-                <input className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Phone" />
-                <input className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Position applied for" />
-                <input type="file" className="w-full rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-300" />
-                <button type="submit" className="rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white">Submit Application</button>
-                {submitted && <p className="text-sm text-brand-300">Application received. Our team will be in touch shortly.</p>}
+                <input type="hidden" name="_subject" value="MBS Careers Application Submission" />
+                <input type="hidden" name="_template" value="table" />
+                <input type="text" name="_honey" className="hidden" tabIndex={-1} autoComplete="off" />
+                <input name="name" required className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Name" />
+                <input type="email" name="email" required className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Email" />
+                <input name="phone" required className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Phone" />
+                <input name="positionAppliedFor" required className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Position applied for" />
+                <input type="file" name="attachment" required accept=".pdf,.doc,.docx,.txt,.rtf,.odt,.png,.jpg,.jpeg" className="w-full rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-300" />
+                <button type="submit" disabled={loading} className="rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white disabled:opacity-70">{loading ? 'Sending...' : 'Submit Application'}</button>
+                {submitted && <p className="text-sm text-brand-300">Thank you for contacting Moderate Business Systems Ltd. Your submission has been received successfully. Our team will review it and get back to you as soon as possible.</p>}
+                {error && <p className="text-sm text-red-400">{error}</p>}
               </form>
             </div>
           </div>

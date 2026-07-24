@@ -24,7 +24,7 @@ export default function IndustriesPage() {
     <SiteShell>
       <main className="bg-slate-950 text-slate-100">
         <section className="relative isolate overflow-hidden">
-          <div className="absolute inset-0 bg-[url('/industries-hero.jpg')] bg-cover bg-center" />
+          <div className="absolute inset-0 bg-[url('/Industries-hero.jpg')] bg-cover bg-center" />
           <div className="hero-overlay absolute inset-0" />
           <div className="relative mx-auto flex min-h-[calc(100vh-72px)] max-w-7xl flex-col justify-center px-4 sm:px-6 py-16 sm:py-24 lg:px-8">
             <div data-aos="fade-right">
