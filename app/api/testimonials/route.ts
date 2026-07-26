@@ -15,6 +15,18 @@ const DEFAULT_APPROVAL_RECIPIENT = 'moderatebiz@yahoo.com';
 
 export const dynamic = 'force-dynamic';
 
+function hasDatabaseUrl() {
+  return Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim());
+}
+
+function isServerlessProduction() {
+  return process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+}
+
+function requiresPersistentDatabase() {
+  return isServerlessProduction() && !hasDatabaseUrl();
+}
+
 type TestimonialInput = {
   name?: string;
   company?: string;
@@ -117,7 +129,24 @@ export async function GET(request: Request) {
   const limitRaw = Number(searchParams.get('limit') || '6');
   const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(1, limitRaw), 24) : 6;
 
-  const payload = await readApprovedTestimonialsPage(page, limit);
+  const payload = await readApprovedTestimonialsPage(page, limit).catch(() => ({
+    items: [],
+    page,
+    limit,
+    hasMore: false,
+    stats: {
+      averageRating: 0,
+      totalReviews: 0,
+      recommendationRate: 0,
+      ratingDistribution: [
+        { rating: 5, percent: 0, count: 0 },
+        { rating: 4, percent: 0, count: 0 },
+        { rating: 3, percent: 0, count: 0 },
+        { rating: 2, percent: 0, count: 0 },
+        { rating: 1, percent: 0, count: 0 },
+      ],
+    },
+  }));
 
   return NextResponse.json(payload, {
     headers: {
@@ -131,6 +160,16 @@ export async function POST(request: Request) {
 
   if (!payload) {
     return NextResponse.json({ message: 'Invalid submission payload.' }, { status: 400 });
+  }
+
+  if (requiresPersistentDatabase()) {
+    return NextResponse.json(
+      {
+        message:
+          'Testimonial submissions are temporarily unavailable because persistent storage is not configured. Please set DATABASE_URL and redeploy.',
+      },
+      { status: 503 },
+    );
   }
 
   if (isLikelySpam(payload)) {
@@ -161,20 +200,33 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Please provide a valid rating between 1 and 5.' }, { status: 400 });
   }
 
-  const duplicateId = await findRecentDuplicate(email, message);
-  if (duplicateId) {
-    return NextResponse.json({ message: 'This testimonial has already been submitted recently.' }, { status: 409 });
-  }
+  let record: DbTestimonial;
 
-  const record = await createPendingTestimonial({
-    name,
-    jobTitle,
-    company,
-    industry,
-    email,
-    testimonial: message,
-    rating,
-  });
+  try {
+    const duplicateId = await findRecentDuplicate(email, message);
+    if (duplicateId) {
+      return NextResponse.json({ message: 'This testimonial has already been submitted recently.' }, { status: 409 });
+    }
+
+    record = await createPendingTestimonial({
+      name,
+      jobTitle,
+      company,
+      industry,
+      email,
+      testimonial: message,
+      rating,
+    });
+  } catch (error) {
+    console.error('Failed to persist testimonial submission:', error);
+    return NextResponse.json(
+      {
+        message:
+          'We could not save your testimonial right now. Please try again shortly.',
+      },
+      { status: 503 },
+    );
+  }
 
   try {
     await notifyModerationEmail(record, request);
@@ -201,6 +253,16 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ message: 'Unauthorized moderation request.' }, { status: 401 });
   }
 
+  if (requiresPersistentDatabase()) {
+    return NextResponse.json(
+      {
+        message:
+          'Moderation is temporarily unavailable because persistent storage is not configured. Please set DATABASE_URL and redeploy.',
+      },
+      { status: 503 },
+    );
+  }
+
   const payload = (await request.json().catch(() => null)) as ModerationInput | null;
 
   if (!payload || !payload.id || !payload.action) {
@@ -208,10 +270,13 @@ export async function PATCH(request: Request) {
   }
 
   const status = payload.action === 'approve' ? 'approved' : 'rejected';
-  const updated = await updateTestimonialById(payload.id, { status });
+  const updated = await updateTestimonialById(payload.id, { status }).catch((error) => {
+    console.error('Failed to update testimonial moderation status:', error);
+    return null;
+  });
 
   if (!updated) {
-    return NextResponse.json({ message: 'Testimonial not found.' }, { status: 404 });
+    return NextResponse.json({ message: 'Moderation update could not be completed at this time.' }, { status: 503 });
   }
 
   return NextResponse.json({

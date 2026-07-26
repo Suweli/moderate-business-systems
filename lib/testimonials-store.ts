@@ -24,6 +24,21 @@ type TestimonialStore = {
 const DATA_DIR = path.join(process.cwd(), 'data');
 const STORE_FILE = path.join(DATA_DIR, 'testimonials.json');
 
+const EMPTY_STORE: TestimonialStore = { nextId: 1, testimonials: [] };
+
+function isServerlessProduction() {
+  return process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+}
+
+function isFilesystemError(error: unknown) {
+  if (!error || typeof error !== 'object' || !('code' in error)) {
+    return false;
+  }
+
+  const code = String((error as { code?: unknown }).code || '');
+  return ['EROFS', 'EACCES', 'EPERM', 'ENOENT'].includes(code);
+}
+
 async function ensureStoreFile() {
   await fs.mkdir(DATA_DIR, { recursive: true });
   try {
@@ -35,18 +50,35 @@ async function ensureStoreFile() {
 }
 
 export async function readStore(): Promise<TestimonialStore> {
-  await ensureStoreFile();
-  const raw = await fs.readFile(STORE_FILE, 'utf8');
-  const parsed = JSON.parse(raw) as TestimonialStore;
-  if (!parsed.nextId || !Array.isArray(parsed.testimonials)) {
-    return { nextId: 1, testimonials: [] };
+  try {
+    await ensureStoreFile();
+    const raw = await fs.readFile(STORE_FILE, 'utf8');
+    const parsed = JSON.parse(raw) as TestimonialStore;
+    if (!parsed.nextId || !Array.isArray(parsed.testimonials)) {
+      return EMPTY_STORE;
+    }
+    return parsed;
+  } catch (error) {
+    if (isServerlessProduction() && isFilesystemError(error)) {
+      console.warn('[testimonials-store] File storage unavailable in serverless production. Falling back to empty in-memory store. Configure DATABASE_URL for persistent testimonials.');
+      return EMPTY_STORE;
+    }
+
+    throw error;
   }
-  return parsed;
 }
 
 export async function writeStore(store: TestimonialStore) {
-  await ensureStoreFile();
-  await fs.writeFile(STORE_FILE, JSON.stringify(store, null, 2), 'utf8');
+  try {
+    await ensureStoreFile();
+    await fs.writeFile(STORE_FILE, JSON.stringify(store, null, 2), 'utf8');
+  } catch (error) {
+    if (isServerlessProduction() && isFilesystemError(error)) {
+      throw new Error('Persistent testimonial storage is unavailable in this deployment. Set DATABASE_URL to enable PostgreSQL-backed storage.');
+    }
+
+    throw error;
+  }
 }
 
 export function initialsFromName(name: string) {
