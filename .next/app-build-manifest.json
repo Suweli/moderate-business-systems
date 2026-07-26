@@ -1,10 +1,10 @@
 {
   "pages": {
-    "/expertise/page": [
+    "/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/expertise/page.css",
-      "static/chunks/app/expertise/page.js"
+      "static/css/app/page.css",
+      "static/chunks/app/page.js"
     ],
     "/layout": [
       "static/chunks/webpack.js",
@@ -12,41 +12,16 @@
       "static/css/app/layout.css",
       "static/chunks/app/layout.js"
     ],
-    "/industries/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/industries/page.css",
-      "static/chunks/app/industries/page.js"
-    ],
-    "/services/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/services/page.css",
-      "static/chunks/app/services/page.js"
-    ],
-    "/about/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/about/page.css",
-      "static/chunks/app/about/page.js"
-    ],
-    "/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/page.css",
-      "static/chunks/app/page.js"
-    ],
-    "/hseq/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/css/app/hseq/page.css",
-      "static/chunks/app/hseq/page.js"
-    ],
     "/testimonials/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/css/app/testimonials/page.css",
       "static/chunks/app/testimonials/page.js"
+    ],
+    "/admin/testimonials/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/testimonials/page.js"
     ],
     "/careers/page": [
       "static/chunks/webpack.js",
@@ -65,6 +40,12 @@
       "static/chunks/main-app.js",
       "static/css/app/contact/page.css",
       "static/chunks/app/contact/page.js"
+    ],
+    "/about/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/css/app/about/page.css",
+      "static/chunks/app/about/page.js"
     ]
   }
 }
