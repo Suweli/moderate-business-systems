@@ -1,8 +1,5 @@
 {
-  "/testimonials/page": "app/testimonials/page.js",
-  "/hseq/page": "app/hseq/page.js",
-  "/request-quote/page": "app/request-quote/page.js",
   "/api/testimonials/route": "app/api/testimonials/route.js",
   "/page": "app/page.js",
-  "/contact/page": "app/contact/page.js"
+  "/testimonials/page": "app/testimonials/page.js"
 }

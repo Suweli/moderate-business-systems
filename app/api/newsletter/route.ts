@@ -13,16 +13,21 @@ type NewsletterPayload = {
 
 function getBrevoConfig() {
   // Add these values to `.env.local` using the keys shown in `.env.example`.
-  const apiKey = process.env.BREVO_API_KEY;
-  const listId = process.env.BREVO_NEWSLETTER_LIST_ID;
+  const apiKey = process.env.BREVO_API_KEY?.trim();
+  const listIdRaw = process.env.BREVO_NEWSLETTER_LIST_ID?.trim();
 
-  if (!apiKey || !listId) {
+  if (!apiKey || !listIdRaw) {
+    return null;
+  }
+
+  const listId = Number(listIdRaw);
+  if (!Number.isInteger(listId) || listId <= 0) {
     return null;
   }
 
   return {
     apiKey,
-    listId: Number(listId),
+    listId,
   };
 }
 

@@ -71,13 +71,22 @@ async function notifyModerationEmail(record: DbTestimonial, request: Request) {
   const senderName = process.env.BREVO_SENDER_NAME || 'Moderate Business Systems Ltd';
   const moderationKey = process.env.TESTIMONIAL_MODERATION_KEY;
 
-  if (!moderationKey) {
-    return;
-  }
-
   const origin = new URL(request.url).origin;
-  const approveUrl = `${origin}/api/testimonials/moderate?id=${record.id}&action=approve&key=${encodeURIComponent(moderationKey)}`;
-  const rejectUrl = `${origin}/api/testimonials/moderate?id=${record.id}&action=reject&key=${encodeURIComponent(moderationKey)}`;
+  const adminDashboardUrl = `${origin}/admin/testimonials`;
+  const approveUrl = moderationKey
+    ? `${origin}/api/testimonials/moderate?id=${record.id}&action=approve&key=${encodeURIComponent(moderationKey)}`
+    : null;
+  const rejectUrl = moderationKey
+    ? `${origin}/api/testimonials/moderate?id=${record.id}&action=reject&key=${encodeURIComponent(moderationKey)}`
+    : null;
+  const actionsHtml = approveUrl && rejectUrl
+    ? `<a href="${approveUrl}">Approve and Publish</a>
+      &nbsp;|&nbsp;
+      <a href="${rejectUrl}">Reject and Remove</a>`
+    : `<a href="${adminDashboardUrl}">Review in Admin Dashboard</a>`;
+  const actionsText = approveUrl && rejectUrl
+    ? `Approve: ${approveUrl}\nReject: ${rejectUrl}`
+    : `Review in admin dashboard: ${adminDashboardUrl}`;
 
   const htmlContent = `
     <h2>New Testimonial Pending Approval</h2>
@@ -93,11 +102,7 @@ async function notifyModerationEmail(record: DbTestimonial, request: Request) {
       <li><strong>Submitted:</strong> ${escapeHtml(record.dateSubmitted)}</li>
     </ul>
     <p><strong>Testimonial:</strong><br/>${escapeHtml(record.testimonial)}</p>
-    <p>
-      <a href="${approveUrl}">Approve and Publish</a>
-      &nbsp;|&nbsp;
-      <a href="${rejectUrl}">Reject and Remove</a>
-    </p>
+    <p>${actionsHtml}</p>
   `;
 
   const response = await fetch(`${BREVO_API_BASE}/smtp/email`, {
@@ -113,7 +118,7 @@ async function notifyModerationEmail(record: DbTestimonial, request: Request) {
       to: [{ email: recipient }],
       subject: `Testimonial Approval Needed (#${record.id})`,
       htmlContent,
-      textContent: `New testimonial pending approval (#${record.id})\n\nName: ${record.name}\nCompany: ${record.company}\nPosition: ${record.jobTitle}\nIndustry: ${record.industry}\nEmail: ${record.email}\nRating: ${record.rating}/5\n\n${record.testimonial}\n\nApprove: ${approveUrl}\nReject: ${rejectUrl}`,
+      textContent: `New testimonial pending approval (#${record.id})\n\nName: ${record.name}\nCompany: ${record.company}\nPosition: ${record.jobTitle}\nIndustry: ${record.industry}\nEmail: ${record.email}\nRating: ${record.rating}/5\n\n${record.testimonial}\n\n${actionsText}`,
     }),
   });
 
