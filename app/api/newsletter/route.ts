@@ -11,10 +11,32 @@ type NewsletterPayload = {
   userAgent?: string;
 };
 
+function readEnvValue(name: string) {
+  const raw = process.env[name];
+  if (!raw) {
+    return null;
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  // Vercel env values are raw strings; tolerate accidental wrapping quotes.
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed.slice(1, -1).trim() || null;
+  }
+
+  return trimmed;
+}
+
 function getBrevoConfig() {
   // Add these values to `.env.local` using the keys shown in `.env.example`.
-  const apiKey = process.env.BREVO_API_KEY?.trim();
-  const listIdRaw = process.env.BREVO_NEWSLETTER_LIST_ID?.trim();
+  const apiKey = readEnvValue('BREVO_API_KEY');
+  const listIdRaw = readEnvValue('BREVO_NEWSLETTER_LIST_ID');
 
   if (!apiKey || !listIdRaw) {
     return null;
@@ -60,7 +82,8 @@ export async function POST(request: Request) {
   if (!config || Number.isNaN(config.listId)) {
     return NextResponse.json(
       {
-        message: 'Newsletter subscriptions are not fully configured yet. Add BREVO_API_KEY and BREVO_NEWSLETTER_LIST_ID to .env.local.',
+        message:
+          'Newsletter subscriptions are not fully configured yet. Add BREVO_API_KEY and BREVO_NEWSLETTER_LIST_ID to your environment (.env.local for local development or Vercel Project Settings in production).',
       },
       { status: 503 }
     );
