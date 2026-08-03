@@ -6,7 +6,8 @@
     "dev": "next dev",
     "dev:phone": "next dev -H 0.0.0.0 -p 3002",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "verify:testimonials:prod": "powershell -ExecutionPolicy Bypass -File ./scripts/testimonials-prod-verify.ps1"
   },
   "dependencies": {
     "@types/pg": "^8.20.0",
