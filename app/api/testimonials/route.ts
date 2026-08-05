@@ -51,13 +51,14 @@ function isLikelySpam(payload: TestimonialInput) {
   return BLOCKED_WORDS.some((term) => haystack.includes(term));
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+function escapeHtml(value: unknown) {
+  const text = String(value ?? '');
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 function readEnvValue(name: string) {
