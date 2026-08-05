@@ -233,7 +233,7 @@ export default function ContactPage() {
                   <a href="https://wa.me/2348143233472" target="_blank" rel="noopener noreferrer" className="rounded-lg bg-gradient-to-r from-green-600 to-green-700 px-4 py-3 text-sm font-semibold text-white hover:from-green-700 hover:to-green-800 transition hover:shadow-lg hover:shadow-green-600/50 inline-flex items-center gap-2">
                     <MessageCircle className="h-4 w-4" /> WhatsApp
                   </a>
-                  <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 text-sm font-semibold text-white hover:from-blue-700 hover:to-blue-800 transition hover:shadow-lg hover:shadow-blue-600/50 inline-flex items-center gap-2">
+                  <a href="https://www.linkedin.com/in/olalekan-olagunju-a002141a2/" target="_blank" rel="noopener noreferrer" className="rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 px-4 py-3 text-sm font-semibold text-white hover:from-blue-700 hover:to-blue-800 transition hover:shadow-lg hover:shadow-blue-600/50 inline-flex items-center gap-2">
                     <Linkedin className="h-4 w-4" /> LinkedIn
                   </a>
                   <a href="https://instagram.com/moderatebiz" target="_blank" rel="noopener noreferrer" className="rounded-lg bg-gradient-to-r from-pink-600 to-pink-700 px-4 py-3 text-sm font-semibold text-white hover:from-pink-700 hover:to-pink-800 transition hover:shadow-lg hover:shadow-pink-600/50 inline-flex items-center gap-2">
