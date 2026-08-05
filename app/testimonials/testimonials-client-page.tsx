@@ -42,6 +42,7 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
   const [fetchError, setFetchError] = useState('');
   const [stats, setStats] = useState(initialData.stats);
   const [submitted, setSubmitted] = useState(false);
+  const [submissionWarning, setSubmissionWarning] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [rating, setRating] = useState(5);
@@ -96,6 +97,7 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSubmitError('');
+    setSubmissionWarning('');
     setLoading(true);
 
     try {
@@ -119,6 +121,9 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
       }
 
       setSubmitted(true);
+      if (payload.notificationWarning) {
+        setSubmissionWarning(payload.notificationWarning);
+      }
       setFormData({ name: '', company: '', position: '', industry: '', email: '', message: '', rating: 5 });
       setRating(5);
       setStartedAt(Date.now());
@@ -356,6 +361,11 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
               {submitted && (
                 <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 sm:p-4">
                   <p className="text-xs font-semibold text-green-300 sm:text-sm">✓ Thank you! Your testimonial has been submitted and is awaiting approval before publication.</p>
+                </div>
+              )}
+              {submissionWarning && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 sm:p-4">
+                  <p className="text-xs font-semibold text-amber-200 sm:text-sm">{submissionWarning}</p>
                 </div>
               )}
               {submitError && (

@@ -11,6 +11,29 @@ type NewsletterPayload = {
   userAgent?: string;
 };
 
+type EnvReadResult = {
+  value: string | null;
+  resolvedName: string | null;
+};
+
+type BrevoConfigResult =
+  | {
+      ok: true;
+      apiKey: string;
+      listId: number;
+      apiKeyVar: string;
+      listIdVar: string;
+    }
+  | {
+      ok: false;
+      reason: 'missing_api_key' | 'missing_list_id' | 'invalid_list_id';
+      listIdRaw: string | null;
+      attemptedApiKeyVars: string[];
+      attemptedListIdVars: string[];
+      resolvedApiKeyVar: string | null;
+      resolvedListIdVar: string | null;
+    };
+
 function readEnvValue(name: string) {
   const raw = process.env[name];
   if (!raw) {
@@ -33,23 +56,65 @@ function readEnvValue(name: string) {
   return trimmed;
 }
 
-function getBrevoConfig() {
+function readFirstEnvValue(names: string[]): EnvReadResult {
+  for (const name of names) {
+    const value = readEnvValue(name);
+    if (value) {
+      return {
+        value,
+        resolvedName: name,
+      };
+    }
+  }
+
+  return {
+    value: null,
+    resolvedName: null,
+  };
+}
+
+function getBrevoConfig(): BrevoConfigResult {
+  const apiKeyVars = ['BREVO_API_KEY', 'BREVO_API_V3_KEY', 'SIB_API_KEY'];
+  const listIdVars = ['BREVO_NEWSLETTER_LIST_ID', 'BREVO_LIST_ID', 'BREVO_CONTACT_LIST_ID'];
+
   // Add these values to `.env.local` using the keys shown in `.env.example`.
-  const apiKey = readEnvValue('BREVO_API_KEY');
-  const listIdRaw = readEnvValue('BREVO_NEWSLETTER_LIST_ID');
+  const apiKeyRead = readFirstEnvValue(apiKeyVars);
+  const listIdRead = readFirstEnvValue(listIdVars);
+
+  const apiKey = apiKeyRead.value;
+  const listIdRaw = listIdRead.value;
 
   if (!apiKey || !listIdRaw) {
-    return null;
+    return {
+      ok: false,
+      reason: !apiKey ? 'missing_api_key' : 'missing_list_id',
+      listIdRaw,
+      attemptedApiKeyVars: apiKeyVars,
+      attemptedListIdVars: listIdVars,
+      resolvedApiKeyVar: apiKeyRead.resolvedName,
+      resolvedListIdVar: listIdRead.resolvedName,
+    };
   }
 
   const listId = Number(listIdRaw);
   if (!Number.isInteger(listId) || listId <= 0) {
-    return null;
+    return {
+      ok: false,
+      reason: 'invalid_list_id',
+      listIdRaw,
+      attemptedApiKeyVars: apiKeyVars,
+      attemptedListIdVars: listIdVars,
+      resolvedApiKeyVar: apiKeyRead.resolvedName,
+      resolvedListIdVar: listIdRead.resolvedName,
+    };
   }
 
   return {
+    ok: true,
     apiKey,
     listId,
+    apiKeyVar: apiKeyRead.resolvedName || 'BREVO_API_KEY',
+    listIdVar: listIdRead.resolvedName || 'BREVO_NEWSLETTER_LIST_ID',
   };
 }
 
@@ -79,11 +144,18 @@ async function brevoRequest<T>(path: string, init: RequestInit, apiKey: string):
 export async function POST(request: Request) {
   const config = getBrevoConfig();
 
-  if (!config || Number.isNaN(config.listId)) {
+  if (!config.ok) {
+    const details =
+      config.reason === 'missing_api_key'
+        ? `Missing API key. Checked: ${config.attemptedApiKeyVars.join(', ')}.`
+        : config.reason === 'missing_list_id'
+          ? `Missing list ID. Checked: ${config.attemptedListIdVars.join(', ')}.`
+          : `Invalid list ID value "${config.listIdRaw}" from ${config.resolvedListIdVar || 'unknown variable'}. Use a positive integer like 12.`;
+
     return NextResponse.json(
       {
         message:
-          'Newsletter subscriptions are not fully configured yet. Add BREVO_API_KEY and BREVO_NEWSLETTER_LIST_ID to your environment (.env.local for local development or Vercel Project Settings in production).',
+          `Newsletter subscriptions are not fully configured yet. ${details} Add BREVO_API_KEY and BREVO_NEWSLETTER_LIST_ID to your environment (.env.local for local development or Vercel Project Settings in production).`,
       },
       { status: 503 }
     );

@@ -60,6 +60,21 @@ function escapeHtml(value: string) {
     .replaceAll("'", '&#39;');
 }
 
+function renderActionButton(label: string, href: string, variant: 'approve' | 'reject' | 'dashboard') {
+  const styles =
+    variant === 'approve'
+      ? 'background:#16a34a;color:#ffffff;'
+      : variant === 'reject'
+        ? 'background:#dc2626;color:#ffffff;'
+        : 'background:#1d4ed8;color:#ffffff;';
+
+  return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:12px 18px;margin:6px 8px 6px 0;border-radius:8px;text-decoration:none;font-weight:700;${styles}">${escapeHtml(label)}</a>`;
+}
+
+function renderPlainLinkLine(label: string, href: string) {
+  return `<p style="margin:0 0 8px;font-size:14px;line-height:1.6;"><strong>${escapeHtml(label)}:</strong><br /><a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">${escapeHtml(href)}</a></p>`;
+}
+
 async function notifyModerationEmail(record: DbTestimonial, request: Request) {
   const apiKey = process.env.BREVO_API_KEY;
   if (!apiKey) {
@@ -80,13 +95,20 @@ async function notifyModerationEmail(record: DbTestimonial, request: Request) {
     ? `${origin}/api/testimonials/moderate?id=${record.id}&action=reject&key=${encodeURIComponent(moderationKey)}`
     : null;
   const actionsHtml = approveUrl && rejectUrl
-    ? `<a href="${approveUrl}">Approve and Publish</a>
-      &nbsp;|&nbsp;
-      <a href="${rejectUrl}">Reject and Remove</a>`
-    : `<a href="${adminDashboardUrl}">Review in Admin Dashboard</a>`;
+    ? `<div style="margin:20px 0 12px;">
+        ${renderActionButton('Approve and Publish', approveUrl, 'approve')}
+        ${renderActionButton('Reject and Remove', rejectUrl, 'reject')}
+      </div>
+      <p style="margin:0 0 12px;color:#94a3b8;font-size:13px;">If your mail app does not make the buttons clickable, use one of the direct links below. Each URL is on its own line to help auto-linking:</p>
+      ${renderPlainLinkLine('Approve', approveUrl)}
+      ${renderPlainLinkLine('Reject', rejectUrl)}`
+    : `<div style="margin:20px 0 12px;">
+        ${renderActionButton('Review in Admin Dashboard', adminDashboardUrl, 'dashboard')}
+      </div>
+      ${renderPlainLinkLine('Admin dashboard', adminDashboardUrl)}`;
   const actionsText = approveUrl && rejectUrl
-    ? `Approve: ${approveUrl}\nReject: ${rejectUrl}`
-    : `Review in admin dashboard: ${adminDashboardUrl}`;
+    ? `Approve\n${approveUrl}\n\nReject\n${rejectUrl}`
+    : `Review in admin dashboard\n${adminDashboardUrl}`;
 
   const htmlContent = `
     <h2>New Testimonial Pending Approval</h2>
@@ -206,6 +228,7 @@ export async function POST(request: Request) {
   }
 
   let record: DbTestimonial;
+  let notificationWarning: string | null = null;
 
   try {
     const duplicateId = await findRecentDuplicate(email, message);
@@ -237,10 +260,13 @@ export async function POST(request: Request) {
     await notifyModerationEmail(record, request);
   } catch (error) {
     console.error('Testimonial moderation email notification failed:', error);
+    notificationWarning =
+      'Your testimonial was saved, but the moderation email could not be sent. Please check BREVO_API_KEY, BREVO_SENDER_EMAIL, TESTIMONIAL_APPROVAL_RECIPIENT, and TESTIMONIAL_MODERATION_KEY in Vercel.';
   }
 
   return NextResponse.json({
     message: 'Thank you! Your testimonial has been submitted and is awaiting approval before publication.',
+    notificationWarning,
   });
 }
 
