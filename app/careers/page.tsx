@@ -7,6 +7,7 @@ import { ArrowRight, BriefcaseBusiness, GraduationCap, HeartHandshake, Users } f
 import SiteShell from '../../components/site-shell';
 
 export default function CareersPage() {
+  const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [startedAt, setStartedAt] = useState(0);
@@ -21,6 +22,7 @@ export default function CareersPage() {
     const form = event.currentTarget;
 
     setError('');
+    setSubmitted(false);
 
     // Honeypot and time-trap to reduce bot spam.
     const formData = new FormData(form);
@@ -40,28 +42,30 @@ export default function CareersPage() {
       formData.set('userAgent', navigator.userAgent);
     }
 
-    const metadataFields = [
-      { name: 'submissionPage', value: 'Careers Application' },
-      { name: 'submittedAt', value: new Date().toISOString() },
-      { name: 'pageUrl', value: typeof window !== 'undefined' ? window.location.href : '' },
-      { name: 'userAgent', value: typeof navigator !== 'undefined' ? navigator.userAgent : '' },
-    ];
+    try {
+      const response = await fetch('/api/careers', {
+        method: 'POST',
+        body: formData,
+      });
 
-    for (const field of metadataFields) {
-      let hidden = form.querySelector<HTMLInputElement>(`input[name="${field.name}"]`);
-      if (!hidden) {
-        hidden = document.createElement('input');
-        hidden.type = 'hidden';
-        hidden.name = field.name;
-        form.appendChild(hidden);
+      const payload = await response.json().catch(() => ({ message: 'Submission failed.' }));
+
+      if (!response.ok) {
+        throw new Error(payload.message || 'Submission failed.');
       }
-      hidden.value = field.value;
-    }
 
-    form.action = 'https://formsubmit.co/moderatebiz@yahoo.com';
-    form.method = 'POST';
-    form.enctype = 'multipart/form-data';
-    form.submit();
+      setSubmitted(true);
+      form.reset();
+      setStartedAt(Date.now());
+    } catch (submitError) {
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : 'We could not send your application right now. Please try again shortly or email moderatebiz@yahoo.com.',
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -121,9 +125,6 @@ export default function CareersPage() {
             <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-8" data-aos="fade-left">
               <h2 className="text-3xl font-semibold text-white">Application Form</h2>
               <form className="mt-6 space-y-4" onSubmit={handleSubmit} encType="multipart/form-data">
-                <input type="hidden" name="_subject" value="MBS Careers Application Submission" />
-                <input type="hidden" name="_template" value="table" />
-                <input type="hidden" name="_captcha" value="false" />
                 <input type="text" name="_honey" className="hidden" tabIndex={-1} autoComplete="off" />
                 <input name="name" required className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Name" />
                 <input type="email" name="email" required className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Email" />
@@ -131,6 +132,7 @@ export default function CareersPage() {
                 <input name="positionAppliedFor" required className="w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-white outline-none" placeholder="Position applied for" />
                 <input type="file" name="attachment" required accept=".pdf,.doc,.docx,.txt,.rtf,.odt,.png,.jpg,.jpeg" className="w-full rounded-2xl border border-dashed border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-300" />
                 <button type="submit" disabled={loading} className="rounded-full bg-brand-500 px-6 py-3 text-sm font-semibold text-white disabled:opacity-70">{loading ? 'Sending...' : 'Submit Application'}</button>
+                {submitted && <p className="text-sm text-brand-300">Thank you for contacting Moderate Business Systems Ltd. Your submission has been received successfully. Our team will review it and get back to you as soon as possible.</p>}
                 {error && <p className="text-sm text-red-400">{error}</p>}
               </form>
             </div>

@@ -261,7 +261,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('Testimonial moderation email notification failed:', error);
     notificationWarning =
-      'Your testimonial was saved, but the moderation email could not be sent. Please check BREVO_API_KEY, BREVO_SENDER_EMAIL, TESTIMONIAL_APPROVAL_RECIPIENT, and TESTIMONIAL_MODERATION_KEY in Vercel.';
+      'Your testimonial was saved, but the moderation email could not be sent. Please verify BREVO_API_KEY and that BREVO_SENDER_EMAIL is a verified sender in Brevo. Also confirm TESTIMONIAL_APPROVAL_RECIPIENT in Vercel.';
   }
 
   return NextResponse.json({
