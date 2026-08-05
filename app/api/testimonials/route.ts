@@ -60,6 +60,20 @@ function escapeHtml(value: string) {
     .replaceAll("'", '&#39;');
 }
 
+function readEnvValue(name: string) {
+  const raw = process.env[name];
+  if (!raw) return null;
+
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    return trimmed.slice(1, -1).trim() || null;
+  }
+
+  return trimmed;
+}
+
 function renderActionButton(label: string, href: string, variant: 'approve' | 'reject' | 'dashboard') {
   const styles =
     variant === 'approve'
@@ -76,15 +90,15 @@ function renderPlainLinkLine(label: string, href: string) {
 }
 
 async function notifyModerationEmail(record: DbTestimonial, request: Request) {
-  const apiKey = process.env.BREVO_API_KEY;
+  const apiKey = readEnvValue('BREVO_API_KEY') || readEnvValue('BREVO_API_V3_KEY') || readEnvValue('SIB_API_KEY');
   if (!apiKey) {
     return;
   }
 
-  const recipient = process.env.TESTIMONIAL_APPROVAL_RECIPIENT || DEFAULT_APPROVAL_RECIPIENT;
-  const senderEmail = process.env.BREVO_SENDER_EMAIL || recipient;
-  const senderName = process.env.BREVO_SENDER_NAME || 'Moderate Business Systems Ltd';
-  const moderationKey = process.env.TESTIMONIAL_MODERATION_KEY;
+  const recipient = readEnvValue('TESTIMONIAL_APPROVAL_RECIPIENT') || DEFAULT_APPROVAL_RECIPIENT;
+  const senderEmail = readEnvValue('BREVO_SENDER_EMAIL') || recipient;
+  const senderName = readEnvValue('BREVO_SENDER_NAME') || 'Moderate Business Systems Ltd';
+  const moderationKey = readEnvValue('TESTIMONIAL_MODERATION_KEY');
 
   const origin = new URL(request.url).origin;
   const adminDashboardUrl = `${origin}/admin/testimonials`;
@@ -260,8 +274,10 @@ export async function POST(request: Request) {
     await notifyModerationEmail(record, request);
   } catch (error) {
     console.error('Testimonial moderation email notification failed:', error);
+
+    const errorMessage = error instanceof Error ? error.message : 'Unknown Brevo error.';
     notificationWarning =
-      'Your testimonial was saved, but the moderation email could not be sent. Please verify BREVO_API_KEY and that BREVO_SENDER_EMAIL is a verified sender in Brevo. Also confirm TESTIMONIAL_APPROVAL_RECIPIENT in Vercel.';
+      `Your testimonial was saved, but the moderation email could not be sent. Brevo response: ${errorMessage}`;
   }
 
   return NextResponse.json({
