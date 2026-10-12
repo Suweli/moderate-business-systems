@@ -35,6 +35,7 @@ type TestimonialInput = {
   email?: string;
   message?: string;
   rating?: number;
+  wouldRecommend?: unknown;
   honey?: string;
   startedAt?: number;
 };
@@ -99,31 +100,13 @@ async function notifyModerationEmail(record: DbTestimonial, request: Request) {
   const recipient = readEnvValue('TESTIMONIAL_APPROVAL_RECIPIENT') || DEFAULT_APPROVAL_RECIPIENT;
   const senderEmail = readEnvValue('BREVO_SENDER_EMAIL') || recipient;
   const senderName = readEnvValue('BREVO_SENDER_NAME') || 'Moderate Business Systems Ltd';
-  const moderationKey = readEnvValue('TESTIMONIAL_MODERATION_KEY');
-
   const origin = new URL(request.url).origin;
   const adminDashboardUrl = `${origin}/admin/testimonials`;
-  const approveUrl = moderationKey
-    ? `${origin}/api/testimonials/moderate?id=${record.id}&action=approve&key=${encodeURIComponent(moderationKey)}`
-    : null;
-  const rejectUrl = moderationKey
-    ? `${origin}/api/testimonials/moderate?id=${record.id}&action=reject&key=${encodeURIComponent(moderationKey)}`
-    : null;
-  const actionsHtml = approveUrl && rejectUrl
-    ? `<div style="margin:20px 0 12px;">
-        ${renderActionButton('Approve and Publish', approveUrl, 'approve')}
-        ${renderActionButton('Reject and Remove', rejectUrl, 'reject')}
-      </div>
-      <p style="margin:0 0 12px;color:#94a3b8;font-size:13px;">If your mail app does not make the buttons clickable, use one of the direct links below. Each URL is on its own line to help auto-linking:</p>
-      ${renderPlainLinkLine('Approve', approveUrl)}
-      ${renderPlainLinkLine('Reject', rejectUrl)}`
-    : `<div style="margin:20px 0 12px;">
-        ${renderActionButton('Review in Admin Dashboard', adminDashboardUrl, 'dashboard')}
-      </div>
-      ${renderPlainLinkLine('Admin dashboard', adminDashboardUrl)}`;
-  const actionsText = approveUrl && rejectUrl
-    ? `Approve\n${approveUrl}\n\nReject\n${rejectUrl}`
-    : `Review in admin dashboard\n${adminDashboardUrl}`;
+  const actionsHtml = `<div style="margin:20px 0 12px;">
+      ${renderActionButton('Review in Admin Dashboard', adminDashboardUrl, 'dashboard')}
+    </div>
+    ${renderPlainLinkLine('Admin dashboard', adminDashboardUrl)}`;
+  const actionsText = `Review in admin dashboard\n${adminDashboardUrl}`;
 
   const htmlContent = `
     <h2>New Testimonial Pending Approval</h2>
@@ -179,7 +162,8 @@ export async function GET(request: Request) {
     stats: {
       averageRating: 0,
       totalReviews: 0,
-      recommendationRate: 0,
+      verifiedReviews: 0,
+      recommendationRate: null,
       ratingDistribution: [
         { rating: 5, percent: 0, count: 0 },
         { rating: 4, percent: 0, count: 0 },
@@ -242,6 +226,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Please provide a valid rating between 1 and 5.' }, { status: 400 });
   }
 
+  if (typeof payload.wouldRecommend !== 'boolean') {
+    return NextResponse.json({ message: 'Please select whether you would recommend us.' }, { status: 400 });
+  }
+
   let record: DbTestimonial;
   let notificationWarning: string | null = null;
 
@@ -259,6 +247,7 @@ export async function POST(request: Request) {
       email,
       testimonial: message,
       rating,
+      wouldRecommend: payload.wouldRecommend,
     });
   } catch (error) {
     console.error('Failed to persist testimonial submission:', error);
@@ -282,7 +271,7 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({
-    message: 'Thank you! Your testimonial has been submitted and is awaiting approval before publication.',
+    message: 'Thank you for sharing your experience with Moderate Business Systems Ltd. Your testimonial has been received and is awaiting review. We appreciate your feedback.',
     notificationWarning,
   });
 }
@@ -293,11 +282,9 @@ type ModerationInput = {
 };
 
 export async function PATCH(request: Request) {
-  const moderationKey = process.env.TESTIMONIAL_MODERATION_KEY;
-  const authHeader = request.headers.get('x-moderation-key') || '';
   const viaDashboard = isAdminAuthenticated();
 
-  if ((!moderationKey || authHeader !== moderationKey) && !viaDashboard) {
+  if (!viaDashboard) {
     return NextResponse.json({ message: 'Unauthorized moderation request.' }, { status: 401 });
   }
 
@@ -313,7 +300,7 @@ export async function PATCH(request: Request) {
 
   const payload = (await request.json().catch(() => null)) as ModerationInput | null;
 
-  if (!payload || !payload.id || !payload.action) {
+  if (!payload || !payload.id || (payload.action !== 'approve' && payload.action !== 'reject')) {
     return NextResponse.json({ message: 'Invalid moderation payload.' }, { status: 400 });
   }
 

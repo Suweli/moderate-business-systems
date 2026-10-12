@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
-import { Star, MessageSquare, Send } from 'lucide-react';
+import { BadgeCheck, Star, MessageSquare, Send } from 'lucide-react';
 import SiteShell from '../../components/site-shell';
 import { type ApprovedTestimonialsPage } from '../../lib/testimonials-public';
 
@@ -19,6 +19,7 @@ interface FormData {
   email: string;
   message: string;
   rating: number;
+  wouldRecommend: boolean | null;
 }
 
 const StarRating = ({ rating }: { rating: number }) => {
@@ -56,6 +57,7 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
     email: '',
     message: '',
     rating: 5,
+    wouldRecommend: null,
   });
 
   useEffect(() => {
@@ -124,7 +126,7 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
       if (payload.notificationWarning) {
         setSubmissionWarning(payload.notificationWarning);
       }
-      setFormData({ name: '', company: '', position: '', industry: '', email: '', message: '', rating: 5 });
+      setFormData({ name: '', company: '', position: '', industry: '', email: '', message: '', rating: 5, wouldRecommend: null });
       setRating(5);
       setStartedAt(Date.now());
 
@@ -140,7 +142,7 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
   const roundedAverage = Number(stats.averageRating.toFixed(1));
   const filledStars = Math.round(stats.averageRating);
   const ratingPercentage = Math.round((stats.averageRating / 5) * 100);
-  const recommendationRate = stats.recommendationRate || 0;
+  const recommendationRate = stats.recommendationRate;
   const ratingDistribution = stats.ratingDistribution || [
     { rating: 5, percent: 0, count: 0 },
     { rating: 4, percent: 0, count: 0 },
@@ -182,13 +184,13 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/30" data-aos="fade-up" data-aos-delay={60}>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-300">Customer Recommendation Rate</p>
-              <h2 className="mt-4 text-4xl font-semibold text-white">{recommendationRate}%</h2>
+              <h2 className="mt-4 text-4xl font-semibold text-white">{recommendationRate === null ? 'N/A' : `${recommendationRate}%`}</h2>
               <p className="mt-2 text-sm text-slate-400">Customers Recommend MBS</p>
             </div>
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/30" data-aos="fade-up" data-aos-delay={120}>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-300">Verified Customer Reviews</p>
-              <h2 className="mt-4 text-4xl font-semibold text-white">{stats.totalReviews.toLocaleString()}</h2>
+              <h2 className="mt-4 text-4xl font-semibold text-white">{stats.verifiedReviews.toLocaleString()}</h2>
               <p className="mt-2 text-sm text-slate-400">Verified Customer Reviews</p>
             </div>
 
@@ -222,8 +224,14 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
             ) : (
               testimonialItems.map((testimonial, index) => (
                 <div key={testimonial.id} className="rounded-3xl border border-slate-800 bg-slate-900/80 p-8 transition hover:border-brand-400/50" data-aos="fade-up" data-aos-delay={index * 100}>
-                  <div className="mb-4">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <StarRating rating={testimonial.rating} />
+                    {testimonial.verified === true && (
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-xs font-medium text-emerald-300">
+                        <BadgeCheck aria-hidden="true" className="h-3.5 w-3.5" />
+                        Verified Customer
+                      </span>
+                    )}
                   </div>
 
                   <p className="mb-6 leading-relaxed text-slate-400">{testimonial.testimonial}</p>
@@ -340,6 +348,34 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
                 </div>
               </div>
 
+              <fieldset>
+                <legend className="mb-2 block text-xs font-semibold text-white sm:mb-3 sm:text-sm">
+                  Would you recommend Moderate Business Systems Ltd to others?
+                </legend>
+                <div className="flex flex-wrap gap-4">
+                  {[
+                    { label: 'Yes', value: true },
+                    { label: 'No', value: false },
+                  ].map((option, index) => (
+                    <label
+                      key={option.label}
+                      className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/60 px-4 py-2.5 text-sm text-slate-200 transition hover:border-brand-400 focus-within:ring-2 focus-within:ring-brand-500/30"
+                    >
+                      <input
+                        type="radio"
+                        name="wouldRecommend"
+                        value={String(option.value)}
+                        checked={formData.wouldRecommend === option.value}
+                        onChange={() => setFormData((prev) => ({ ...prev, wouldRecommend: option.value }))}
+                        required={index === 0}
+                        className="h-4 w-4 accent-brand-400"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
               <textarea
                 name="message"
                 value={formData.message}
@@ -360,7 +396,7 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
 
               {submitted && (
                 <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 sm:p-4">
-                  <p className="text-xs font-semibold text-green-300 sm:text-sm">✓ Thank you! Your testimonial has been submitted and is awaiting approval before publication.</p>
+                  <p className="text-xs font-semibold text-green-300 sm:text-sm">✓ Thank you for sharing your experience with Moderate Business Systems Ltd. Your testimonial has been received and is awaiting review. We appreciate your feedback.</p>
                 </div>
               )}
               {submissionWarning && (

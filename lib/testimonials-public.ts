@@ -3,9 +3,9 @@ export type PublicTestimonial = {
   name: string;
   company: string;
   position: string;
-  email?: string;
   testimonial: string;
   rating: number;
+  verified: boolean;
   date: string;
   avatar: string;
   approved?: boolean;
@@ -17,7 +17,8 @@ export type PublicTestimonial = {
 export type DashboardStats = {
   averageRating: number;
   totalReviews: number;
-  recommendationRate: number;
+  verifiedReviews: number;
+  recommendationRate: number | null;
   ratingDistribution: Array<{ rating: number; percent: number; count: number }>;
 };
 

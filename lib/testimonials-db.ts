@@ -1,5 +1,4 @@
-import { dbQuery } from './db';
-import { initialsFromName, readStore, writeStore } from './testimonials-store';
+import { dbQuery, getPool } from './db';
 
 export type TestimonialStatus = 'pending' | 'approved' | 'rejected';
 
@@ -13,6 +12,8 @@ export type DbTestimonial = {
   testimonial: string;
   rating: number;
   status: TestimonialStatus;
+  verified: boolean;
+  recommendationInvalid: boolean | null;
   dateSubmitted: string;
   dateApproved: string | null;
   lastUpdated: string;
@@ -23,9 +24,9 @@ export type PublicTestimonial = {
   name: string;
   company: string;
   position: string;
-  email?: string;
   testimonial: string;
   rating: number;
+  verified: boolean;
   date: string;
   avatar: string;
   approved?: boolean;
@@ -37,7 +38,8 @@ export type PublicTestimonial = {
 export type DashboardStats = {
   averageRating: number;
   totalReviews: number;
-  recommendationRate: number;
+  verifiedReviews: number;
+  recommendationRate: number | null;
   ratingDistribution: Array<{ rating: number; percent: number; count: number }>;
 };
 
@@ -51,6 +53,17 @@ export type ApprovedTestimonialsPage = {
 
 export const DEFAULT_TESTIMONIAL_PAGE_SIZE = 6;
 export const MAX_TESTIMONIAL_PAGE_SIZE = 24;
+
+function initialsFromName(name: string) {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() || '')
+    .join('');
+
+  return initials || 'MB';
+}
 
 function hasDatabaseUrl() {
   return Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim());
@@ -70,15 +83,15 @@ function toMonthYear(dateISO: string) {
   return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(dateISO));
 }
 
-function toPublicTestimonial(row: DbTestimonial): PublicTestimonial {
+function toPublicTestimonial(row: Pick<DbTestimonial, 'id' | 'name' | 'company' | 'jobTitle' | 'testimonial' | 'rating' | 'status' | 'verified' | 'dateSubmitted' | 'lastUpdated' | 'industry'>): PublicTestimonial {
   return {
     id: row.id,
     name: row.name,
     company: row.company,
     position: row.jobTitle,
-    email: row.email,
     testimonial: row.testimonial,
     rating: row.rating,
+    verified: row.verified,
     date: toMonthYear(row.dateSubmitted),
     avatar: initialsFromName(row.name),
     approved: row.status === 'approved',
@@ -90,104 +103,67 @@ function toPublicTestimonial(row: DbTestimonial): PublicTestimonial {
 
 export async function ensureTestimonialsSchema() {
   if (!hasDatabaseUrl()) {
-    return;
+    throw new Error('DATABASE_URL is not configured.');
   }
 
-  await dbQuery(`
-    CREATE TABLE IF NOT EXISTS testimonials (
-      id SERIAL PRIMARY KEY,
-      name TEXT NOT NULL,
-      job_title TEXT NOT NULL DEFAULT '',
-      company TEXT NOT NULL DEFAULT '',
-      industry TEXT NOT NULL DEFAULT '',
-      email TEXT NOT NULL,
-      testimonial TEXT NOT NULL,
-      rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
-      status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
-      date_submitted TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      date_approved TIMESTAMPTZ,
-      last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    );
-  `);
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT pg_advisory_xact_lock($1::bigint)', [741928406155]);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS testimonials (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        job_title TEXT NOT NULL DEFAULT '',
+        company TEXT NOT NULL DEFAULT '',
+        industry TEXT NOT NULL DEFAULT '',
+        email TEXT NOT NULL,
+        testimonial TEXT NOT NULL,
+        rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+        status TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+        verified BOOLEAN NOT NULL DEFAULT FALSE,
+        recommendation_invalid BOOLEAN,
+        date_submitted TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        date_approved TIMESTAMPTZ,
+        last_updated TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
 
-  await dbQuery(`CREATE INDEX IF NOT EXISTS idx_testimonials_status ON testimonials(status);`);
-  await dbQuery(`CREATE INDEX IF NOT EXISTS idx_testimonials_submitted ON testimonials(date_submitted DESC);`);
-  await dbQuery(`CREATE INDEX IF NOT EXISTS idx_testimonials_email ON testimonials(email);`);
-}
-
-export async function migrateFromJsonIfNeeded() {
-  if (!hasDatabaseUrl()) {
-    return;
-  }
-
-  await ensureTestimonialsSchema();
-  const countRes = await dbQuery<{ count: string }>('SELECT COUNT(*)::text AS count FROM testimonials');
-  const count = Number(countRes.rows[0]?.count || '0');
-  if (count > 0) return;
-
-  // Soft migration from legacy JSON file if present.
-  const { readStore } = await import('./testimonials-store');
-  const legacy = await readStore().catch(() => ({ testimonials: [] as any[] }));
-
-  for (const item of legacy.testimonials || []) {
-    const status: TestimonialStatus = item.approved ? 'approved' : 'pending';
-    const submitted = item.createdAt || new Date().toISOString();
-    await dbQuery(
-      `INSERT INTO testimonials
-      (name, job_title, company, industry, email, testimonial, rating, status, date_submitted, date_approved, last_updated)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-      [
-        String(item.name || ''),
-        String(item.position || ''),
-        String(item.company || ''),
-        String(item.industry || ''),
-        String(item.email || ''),
-        String(item.testimonial || ''),
-        Number(item.rating || 5),
-        status,
-        submitted,
-        status === 'approved' ? submitted : null,
-        item.updatedAt || submitted,
-      ],
-    );
+    await client.query('ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS verified BOOLEAN NOT NULL DEFAULT FALSE');
+    await client.query('ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS would_recommend BOOLEAN');
+    await client.query('ALTER TABLE testimonials ADD COLUMN IF NOT EXISTS recommendation_invalid BOOLEAN');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_testimonials_status ON testimonials(status)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_testimonials_submitted ON testimonials(date_submitted DESC)');
+    await client.query('CREATE INDEX IF NOT EXISTS idx_testimonials_email ON testimonials(email)');
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
   }
 }
 
 async function computeStats(): Promise<DashboardStats> {
-  if (!hasDatabaseUrl()) {
-    const store = await readStore();
-    const ratings = (store.testimonials || [])
-      .filter((item: any) => item.approved)
-      .map((item: any) => Number(item.rating || 0))
-      .filter((value: number) => value >= 1 && value <= 5);
-
-    const totalReviews = ratings.length;
-    const averageRating = totalReviews
-      ? Number((ratings.reduce((sum, value) => sum + value, 0) / totalReviews).toFixed(1))
-      : 0;
-    const recommended = ratings.filter((rating) => rating >= 4).length;
-    const recommendationRate = totalReviews ? Math.round((recommended / totalReviews) * 100) : 0;
-    const ratingDistribution = [5, 4, 3, 2, 1].map((rating) => {
-      const count = ratings.filter((value) => value === rating).length;
-      const percent = totalReviews ? Math.round((count / totalReviews) * 100) : 0;
-      return { rating, percent, count };
-    });
-
-    return { averageRating, totalReviews, recommendationRate, ratingDistribution };
-  }
-
-  const rows = await dbQuery<{ rating: number }>(
-    `SELECT rating FROM testimonials WHERE status = 'approved'`
+  const rows = await dbQuery<{ rating: number; verified: boolean }>(
+    `SELECT rating, verified FROM testimonials WHERE status = 'approved'`,
   );
-
-  const ratings = rows.rows.map((row) => Number(row.rating));
+  const recommendationRows = await dbQuery<{ yes_count: string; response_count: string }>(
+    `SELECT
+       COUNT(*) FILTER (WHERE would_recommend IS TRUE) AS yes_count,
+       COUNT(*) FILTER (WHERE would_recommend IN (TRUE, FALSE)) AS response_count
+    FROM testimonials
+    WHERE recommendation_invalid IS NOT TRUE`,
+  );
+  const ratings = rows.rows.map((row) => Number(row.rating)).filter((rating) => Number.isFinite(rating) && rating >= 1 && rating <= 5);
   const totalReviews = ratings.length;
   const averageRating = totalReviews
     ? Number((ratings.reduce((sum, value) => sum + value, 0) / totalReviews).toFixed(1))
     : 0;
-
-  const recommended = ratings.filter((rating) => rating >= 4).length;
-  const recommendationRate = totalReviews ? Math.round((recommended / totalReviews) * 100) : 0;
+  const verifiedReviews = rows.rows.filter((row) => row.verified).length;
+  const yesCount = Number(recommendationRows.rows[0]?.yes_count ?? 0);
+  const responseCount = Number(recommendationRows.rows[0]?.response_count ?? 0);
+  const recommendationRate = responseCount > 0 ? Math.round((yesCount / responseCount) * 100) : null;
 
   const ratingDistribution = [5, 4, 3, 2, 1].map((rating) => {
     const count = ratings.filter((value) => value === rating).length;
@@ -198,6 +174,7 @@ async function computeStats(): Promise<DashboardStats> {
   return {
     averageRating,
     totalReviews,
+    verifiedReviews,
     recommendationRate,
     ratingDistribution,
   };
@@ -208,41 +185,7 @@ export async function readApprovedTestimonialsPage(pageInput: number, limitInput
   const limit = clampLimit(limitInput);
   const offset = (page - 1) * limit;
 
-  if (!hasDatabaseUrl()) {
-    const store = await readStore();
-    const approved = (store.testimonials || [])
-      .filter((item: any) => item.approved)
-      .sort((a: any, b: any) => Date.parse(b.createdAt || '') - Date.parse(a.createdAt || ''));
-
-    const pageItems = approved.slice(offset, offset + limit);
-    const hasMore = offset + limit < approved.length;
-
-    const items = pageItems.map((item: any) => ({
-      id: Number(item.id),
-      name: String(item.name || ''),
-      company: String(item.company || ''),
-      position: String(item.position || ''),
-      email: String(item.email || ''),
-      testimonial: String(item.testimonial || ''),
-      rating: Number(item.rating || 5),
-      date: String(item.date || toMonthYear(item.createdAt || new Date().toISOString())),
-      avatar: String(item.avatar || initialsFromName(String(item.name || ''))),
-      approved: true,
-      createdAt: String(item.createdAt || ''),
-      updatedAt: String(item.updatedAt || ''),
-      industry: String(item.industry || ''),
-    }));
-
-    return {
-      items,
-      page,
-      limit,
-      hasMore,
-      stats: await computeStats(),
-    };
-  }
-
-  await migrateFromJsonIfNeeded();
+  await ensureTestimonialsSchema();
 
   const rows = await dbQuery<{
     id: number;
@@ -250,15 +193,15 @@ export async function readApprovedTestimonialsPage(pageInput: number, limitInput
     job_title: string;
     company: string;
     industry: string;
-    email: string;
     testimonial: string;
     rating: number;
     status: TestimonialStatus;
+    verified: boolean;
     date_submitted: string;
     date_approved: string | null;
     last_updated: string;
   }>(
-    `SELECT id, name, job_title, company, industry, email, testimonial, rating, status, date_submitted, date_approved, last_updated
+    `SELECT id, name, job_title, company, industry, testimonial, rating, status, verified, date_submitted, date_approved, last_updated
      FROM testimonials
      WHERE status = 'approved'
      ORDER BY date_approved DESC NULLS LAST, date_submitted DESC
@@ -276,12 +219,11 @@ export async function readApprovedTestimonialsPage(pageInput: number, limitInput
       jobTitle: row.job_title,
       company: row.company,
       industry: row.industry,
-      email: row.email,
       testimonial: row.testimonial,
       rating: row.rating,
       status: row.status,
+      verified: row.verified,
       dateSubmitted: row.date_submitted,
-      dateApproved: row.date_approved,
       lastUpdated: row.last_updated,
     }),
   );
@@ -303,23 +245,11 @@ export type CreateTestimonialInput = {
   email: string;
   testimonial: string;
   rating: number;
+  wouldRecommend: boolean;
 };
 
 export async function findRecentDuplicate(email: string, testimonial: string) {
-  if (!hasDatabaseUrl()) {
-    const store = await readStore();
-    const now = Date.now();
-    const duplicate = (store.testimonials || []).find((item: any) => {
-      const sameEmail = String(item.email || '').toLowerCase() === email.toLowerCase();
-      const sameMessage = String(item.testimonial || '').toLowerCase() === testimonial.toLowerCase();
-      const createdAt = Date.parse(String(item.createdAt || ''));
-      const within30d = Number.isFinite(createdAt) && Math.abs(now - createdAt) < 1000 * 60 * 60 * 24 * 30;
-      return sameEmail && sameMessage && within30d;
-    });
-    return duplicate ? Number(duplicate.id) : null;
-  }
-
-  await migrateFromJsonIfNeeded();
+  await ensureTestimonialsSchema();
   const rows = await dbQuery<{ id: number }>(
     `SELECT id
      FROM testimonials
@@ -333,50 +263,7 @@ export async function findRecentDuplicate(email: string, testimonial: string) {
 }
 
 export async function createPendingTestimonial(input: CreateTestimonialInput) {
-  if (!hasDatabaseUrl()) {
-    const store: any = await readStore();
-    const now = new Date().toISOString();
-    const id = Number(store.nextId || 1);
-
-    const record: any = {
-      id,
-      name: input.name,
-      position: input.jobTitle,
-      company: input.company,
-      industry: input.industry,
-      email: input.email,
-      testimonial: input.testimonial,
-      rating: input.rating,
-      date: toMonthYear(now),
-      avatar: initialsFromName(input.name),
-      approved: false,
-      status: 'pending',
-      createdAt: now,
-      updatedAt: now,
-      dateApproved: null,
-    };
-
-    store.nextId = id + 1;
-    store.testimonials = [...(store.testimonials || []), record];
-    await writeStore(store);
-
-    return {
-      id,
-      name: input.name,
-      jobTitle: input.jobTitle,
-      company: input.company,
-      industry: input.industry,
-      email: input.email,
-      testimonial: input.testimonial,
-      rating: input.rating,
-      status: 'pending' as TestimonialStatus,
-      dateSubmitted: now,
-      dateApproved: null,
-      lastUpdated: now,
-    };
-  }
-
-  await migrateFromJsonIfNeeded();
+  await ensureTestimonialsSchema();
 
   const result = await dbQuery<{
     id: number;
@@ -388,15 +275,17 @@ export async function createPendingTestimonial(input: CreateTestimonialInput) {
     testimonial: string;
     rating: number;
     status: TestimonialStatus;
+    verified: boolean;
+    recommendation_invalid: boolean | null;
     date_submitted: string;
     date_approved: string | null;
     last_updated: string;
   }>(
     `INSERT INTO testimonials
-      (name, job_title, company, industry, email, testimonial, rating, status, date_submitted, last_updated)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',NOW(),NOW())
-     RETURNING id, name, job_title, company, industry, email, testimonial, rating, status, date_submitted, date_approved, last_updated`,
-    [input.name, input.jobTitle, input.company, input.industry, input.email, input.testimonial, input.rating],
+      (name, job_title, company, industry, email, testimonial, rating, would_recommend, recommendation_invalid, status, date_submitted, last_updated)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,FALSE,'pending',NOW(),NOW())
+    RETURNING id, name, job_title, company, industry, email, testimonial, rating, status, verified, recommendation_invalid, date_submitted, date_approved, last_updated`,
+    [input.name, input.jobTitle, input.company, input.industry, input.email, input.testimonial, input.rating, input.wouldRecommend],
   );
 
   const row = result.rows[0];
@@ -410,6 +299,8 @@ export async function createPendingTestimonial(input: CreateTestimonialInput) {
     testimonial: row.testimonial,
     rating: row.rating,
     status: row.status,
+    verified: row.verified,
+    recommendationInvalid: row.recommendation_invalid,
     dateSubmitted: row.date_submitted,
     dateApproved: row.date_approved,
     lastUpdated: row.last_updated,
@@ -417,45 +308,14 @@ export async function createPendingTestimonial(input: CreateTestimonialInput) {
 }
 
 export async function listTestimonialsByStatus(status: TestimonialStatus | 'all') {
-  if (!hasDatabaseUrl()) {
-    const store: any = await readStore();
-    const all = (store.testimonials || []).map((item: any) => {
-      const derivedStatus =
-        item.status === 'approved' || item.status === 'pending' || item.status === 'rejected'
-          ? item.status
-          : item.approved
-            ? 'approved'
-            : 'pending';
-
-      return {
-        id: Number(item.id),
-        name: String(item.name || ''),
-        jobTitle: String(item.position || ''),
-        company: String(item.company || ''),
-        industry: String(item.industry || ''),
-        email: String(item.email || ''),
-        testimonial: String(item.testimonial || ''),
-        rating: Number(item.rating || 5),
-        status: derivedStatus as TestimonialStatus,
-        dateSubmitted: String(item.createdAt || new Date().toISOString()),
-        dateApproved: item.dateApproved ? String(item.dateApproved) : item.approved ? String(item.updatedAt || item.createdAt || '') : null,
-        lastUpdated: String(item.updatedAt || item.createdAt || new Date().toISOString()),
-      };
-    });
-
-    return (status === 'all' ? all : all.filter((item: DbTestimonial) => item.status === status)).sort(
-      (a: DbTestimonial, b: DbTestimonial) => Date.parse(b.dateSubmitted) - Date.parse(a.dateSubmitted),
-    ) as DbTestimonial[];
-  }
-
-  await migrateFromJsonIfNeeded();
+  await ensureTestimonialsSchema();
 
   const query =
     status === 'all'
-      ? `SELECT id, name, job_title, company, industry, email, testimonial, rating, status, date_submitted, date_approved, last_updated
+      ? `SELECT id, name, job_title, company, industry, email, testimonial, rating, status, verified, recommendation_invalid, date_submitted, date_approved, last_updated
          FROM testimonials
          ORDER BY date_submitted DESC`
-      : `SELECT id, name, job_title, company, industry, email, testimonial, rating, status, date_submitted, date_approved, last_updated
+      : `SELECT id, name, job_title, company, industry, email, testimonial, rating, status, verified, recommendation_invalid, date_submitted, date_approved, last_updated
          FROM testimonials
          WHERE status = $1
          ORDER BY date_submitted DESC`;
@@ -474,6 +334,8 @@ export async function listTestimonialsByStatus(status: TestimonialStatus | 'all'
     testimonial: row.testimonial,
     rating: row.rating,
     status: row.status,
+    verified: row.verified,
+    recommendationInvalid: row.recommendation_invalid,
     dateSubmitted: row.date_submitted,
     dateApproved: row.date_approved,
     lastUpdated: row.last_updated,
@@ -482,54 +344,9 @@ export async function listTestimonialsByStatus(status: TestimonialStatus | 'all'
 
 export async function updateTestimonialById(
   id: number,
-  input: Partial<Pick<DbTestimonial, 'name' | 'jobTitle' | 'company' | 'industry' | 'email' | 'testimonial' | 'rating' | 'status'>>,
+  input: Partial<Pick<DbTestimonial, 'name' | 'jobTitle' | 'company' | 'industry' | 'email' | 'testimonial' | 'rating' | 'status' | 'verified' | 'recommendationInvalid'>>,
 ) {
-  if (!hasDatabaseUrl()) {
-    const store: any = await readStore();
-    const index = (store.testimonials || []).findIndex((item: any) => Number(item.id) === id);
-    if (index === -1) return null;
-
-    const existing = store.testimonials[index] || {};
-    const now = new Date().toISOString();
-
-    const nextStatus = input.status ?? (existing.status || (existing.approved ? 'approved' : 'pending'));
-
-    const updated: any = {
-      ...existing,
-      name: input.name ?? existing.name,
-      position: input.jobTitle ?? existing.position,
-      company: input.company ?? existing.company,
-      industry: input.industry ?? existing.industry,
-      email: input.email ?? existing.email,
-      testimonial: input.testimonial ?? existing.testimonial,
-      rating: input.rating ?? existing.rating,
-      status: nextStatus,
-      approved: nextStatus === 'approved',
-      dateApproved: nextStatus === 'approved' ? (existing.dateApproved || now) : null,
-      updatedAt: now,
-      lastUpdated: now,
-    };
-
-    store.testimonials[index] = updated;
-    await writeStore(store);
-
-    return {
-      id: Number(updated.id),
-      name: String(updated.name || ''),
-      jobTitle: String(updated.position || ''),
-      company: String(updated.company || ''),
-      industry: String(updated.industry || ''),
-      email: String(updated.email || ''),
-      testimonial: String(updated.testimonial || ''),
-      rating: Number(updated.rating || 5),
-      status: updated.status as TestimonialStatus,
-      dateSubmitted: String(updated.createdAt || now),
-      dateApproved: updated.dateApproved ? String(updated.dateApproved) : null,
-      lastUpdated: String(updated.updatedAt || now),
-    } as DbTestimonial;
-  }
-
-  await migrateFromJsonIfNeeded();
+  await ensureTestimonialsSchema();
 
   const fields: string[] = [];
   const params: unknown[] = [];
@@ -550,8 +367,12 @@ export async function updateTestimonialById(
     pushField('status', input.status);
     if (input.status === 'approved') {
       fields.push('date_approved = NOW()');
+    } else {
+      fields.push('date_approved = NULL');
     }
   }
+  if (typeof input.verified === 'boolean') pushField('verified', input.verified);
+  if (typeof input.recommendationInvalid === 'boolean') pushField('recommendation_invalid', input.recommendationInvalid);
 
   fields.push('last_updated = NOW()');
 
@@ -565,7 +386,7 @@ export async function updateTestimonialById(
     `UPDATE testimonials
      SET ${fields.join(', ')}
      WHERE id = $${params.length}
-     RETURNING id, name, job_title, company, industry, email, testimonial, rating, status, date_submitted, date_approved, last_updated`,
+    RETURNING id, name, job_title, company, industry, email, testimonial, rating, status, verified, recommendation_invalid, date_submitted, date_approved, last_updated`,
     params,
   );
 
@@ -582,6 +403,8 @@ export async function updateTestimonialById(
     testimonial: row.testimonial,
     rating: row.rating,
     status: row.status,
+    verified: row.verified,
+    recommendationInvalid: row.recommendation_invalid,
     dateSubmitted: row.date_submitted,
     dateApproved: row.date_approved,
     lastUpdated: row.last_updated,
@@ -589,15 +412,7 @@ export async function updateTestimonialById(
 }
 
 export async function deleteTestimonialById(id: number) {
-  if (!hasDatabaseUrl()) {
-    const store: any = await readStore();
-    const before = (store.testimonials || []).length;
-    store.testimonials = (store.testimonials || []).filter((item: any) => Number(item.id) !== id);
-    await writeStore(store);
-    return store.testimonials.length < before;
-  }
-
-  await migrateFromJsonIfNeeded();
+  await ensureTestimonialsSchema();
   const result = await dbQuery('DELETE FROM testimonials WHERE id = $1', [id]);
   return (result.rowCount || 0) > 0;
 }

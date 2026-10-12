@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { updateTestimonialById } from '../../../../lib/testimonials-db';
 
 function htmlResponse(title: string, message: string, status = 200) {
   const html = `<!doctype html>
@@ -35,29 +34,5 @@ function htmlResponse(title: string, message: string, status = 200) {
 }
 
 export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const key = searchParams.get('key') || '';
-  const idParam = Number(searchParams.get('id') || '0');
-  const actionParam = searchParams.get('action');
-  const moderationKey = process.env.TESTIMONIAL_MODERATION_KEY;
-
-  if (!moderationKey || key !== moderationKey) {
-    return htmlResponse('Unauthorized', 'Invalid moderation key.', 401);
-  }
-
-  if (!idParam || (actionParam !== 'approve' && actionParam !== 'reject')) {
-    return htmlResponse('Invalid Request', 'Missing or invalid moderation parameters.', 400);
-  }
-
-  const updated = await updateTestimonialById(idParam, {
-    status: actionParam === 'approve' ? 'approved' : 'rejected',
-  });
-
-  if (!updated) {
-    return htmlResponse('Moderation Failed', 'Testimonial not found.', 404);
-  }
-
-  const title = actionParam === 'approve' ? 'Testimonial Approved' : 'Testimonial Rejected';
-  const message = actionParam === 'approve' ? 'Testimonial approved and published.' : 'Testimonial rejected.';
-  return htmlResponse(title, message, 200);
+  return htmlResponse('Use the Admin Dashboard', 'Sign in to the administrator dashboard to review testimonials.', 405);
 }
