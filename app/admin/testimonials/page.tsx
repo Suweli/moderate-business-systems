@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { Check, Pencil, Trash2, X } from 'lucide-react';
+import { BadgeCheck, Check, Pencil, Trash2, X } from 'lucide-react';
 import SiteShell from '../../../components/site-shell';
 
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected';
@@ -16,6 +16,7 @@ type AdminTestimonial = {
   testimonial: string;
   rating: number;
   status: 'pending' | 'approved' | 'rejected';
+  verified: boolean;
   dateSubmitted: string;
   dateApproved: string | null;
   lastUpdated: string;
@@ -24,14 +25,16 @@ type AdminTestimonial = {
 type DashboardStats = {
   averageRating: number;
   totalReviews: number;
-  recommendationRate: number;
+  verifiedReviews: number;
+  recommendationRate: number | null;
   ratingDistribution: Array<{ rating: number; percent: number; count: number }>;
 };
 
 const emptyStats: DashboardStats = {
   averageRating: 0,
   totalReviews: 0,
-  recommendationRate: 0,
+  verifiedReviews: 0,
+  recommendationRate: null,
   ratingDistribution: [5, 4, 3, 2, 1].map((rating) => ({ rating, percent: 0, count: 0 })),
 };
 
@@ -249,11 +252,11 @@ export default function AdminTestimonialsPage() {
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-brand-300">Customer Recommendation Rate</p>
-                  <p className="mt-2 text-3xl font-semibold">{stats.recommendationRate}%</p>
+                  <p className="mt-2 text-3xl font-semibold">{stats.recommendationRate === null ? 'N/A' : `${stats.recommendationRate}%`}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-brand-300">Verified Customer Reviews</p>
-                  <p className="mt-2 text-3xl font-semibold">{stats.totalReviews.toLocaleString()}</p>
+                  <p className="mt-2 text-3xl font-semibold">{stats.verifiedReviews.toLocaleString()}</p>
                 </div>
                 <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-5">
                   <p className="text-xs uppercase tracking-[0.2em] text-brand-300">Rating Distribution</p>
@@ -302,6 +305,17 @@ export default function AdminTestimonialsPage() {
                         <button className="rounded-md bg-amber-600 p-2" onClick={() => setEditing(item)} title="Edit">
                           <Pencil className="h-4 w-4" />
                         </button>
+                        <button
+                          className={`rounded-md p-2 ${item.verified ? 'bg-sky-700' : 'bg-slate-700'}`}
+                          onClick={() => {
+                            if (!item.verified && !window.confirm('Confirm that you verified this customer relationship against MBS records. Approval alone is not verification.')) return;
+                            void updateItem(item.id, { verified: !item.verified });
+                          }}
+                          title={item.verified ? 'Remove customer verification' : 'Verify customer relationship'}
+                          aria-label={item.verified ? 'Remove customer verification' : 'Verify customer relationship'}
+                        >
+                          <BadgeCheck className="h-4 w-4" />
+                        </button>
                         <button className="rounded-md bg-rose-600 p-2" onClick={() => void updateItem(item.id, { status: 'rejected' })} title="Reject">
                           <X className="h-4 w-4" />
                         </button>
@@ -311,7 +325,7 @@ export default function AdminTestimonialsPage() {
                       </div>
                     </div>
                     <p className="mt-3 text-slate-300">{item.testimonial}</p>
-                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-brand-300">{item.status}</p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-brand-300">{item.status}{item.verified ? ' · Customer relationship verified' : ''}</p>
                   </article>
                 ))}
               </div>

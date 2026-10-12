@@ -140,7 +140,7 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
   const roundedAverage = Number(stats.averageRating.toFixed(1));
   const filledStars = Math.round(stats.averageRating);
   const ratingPercentage = Math.round((stats.averageRating / 5) * 100);
-  const recommendationRate = stats.recommendationRate || 0;
+  const recommendationRate = stats.recommendationRate;
   const ratingDistribution = stats.ratingDistribution || [
     { rating: 5, percent: 0, count: 0 },
     { rating: 4, percent: 0, count: 0 },
@@ -182,13 +182,13 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/30" data-aos="fade-up" data-aos-delay={60}>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-300">Customer Recommendation Rate</p>
-              <h2 className="mt-4 text-4xl font-semibold text-white">{recommendationRate}%</h2>
+              <h2 className="mt-4 text-4xl font-semibold text-white">{recommendationRate === null ? 'N/A' : `${recommendationRate}%`}</h2>
               <p className="mt-2 text-sm text-slate-400">Customers Recommend MBS</p>
             </div>
 
             <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-lg shadow-black/20 transition hover:-translate-y-0.5 hover:shadow-xl hover:shadow-black/30" data-aos="fade-up" data-aos-delay={120}>
               <p className="text-sm font-semibold uppercase tracking-[0.3em] text-brand-300">Verified Customer Reviews</p>
-              <h2 className="mt-4 text-4xl font-semibold text-white">{stats.totalReviews.toLocaleString()}</h2>
+              <h2 className="mt-4 text-4xl font-semibold text-white">{stats.verifiedReviews.toLocaleString()}</h2>
               <p className="mt-2 text-sm text-slate-400">Verified Customer Reviews</p>
             </div>
 
@@ -360,7 +360,7 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
 
               {submitted && (
                 <div className="rounded-lg border border-green-500/30 bg-green-500/10 p-3 sm:p-4">
-                  <p className="text-xs font-semibold text-green-300 sm:text-sm">✓ Thank you! Your testimonial has been submitted and is awaiting approval before publication.</p>
+                  <p className="text-xs font-semibold text-green-300 sm:text-sm">✓ Thank you for sharing your experience with Moderate Business Systems Ltd. Your testimonial has been received and is awaiting review. We appreciate your feedback.</p>
                 </div>
               )}
               {submissionWarning && (

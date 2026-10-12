@@ -12,7 +12,8 @@ export default async function TestimonialsPage() {
     stats: {
       averageRating: 0,
       totalReviews: 0,
-      recommendationRate: 0,
+      verifiedReviews: 0,
+      recommendationRate: null,
       ratingDistribution: [
         { rating: 5, percent: 0, count: 0 },
         { rating: 4, percent: 0, count: 0 },

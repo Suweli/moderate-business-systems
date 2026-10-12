@@ -58,14 +58,23 @@ export async function PATCH(request: Request) {
     testimonial?: string;
     rating?: number;
     status?: TestimonialStatus;
+    verified?: boolean;
   } | null;
 
   if (!body?.id) {
     return NextResponse.json({ message: 'Testimonial id is required.' }, { status: 400 });
   }
 
+  if (body.status !== undefined && !['pending', 'approved', 'rejected'].includes(body.status)) {
+    return NextResponse.json({ message: 'Invalid testimonial status.' }, { status: 400 });
+  }
+
   if (body.rating !== undefined && (!Number.isInteger(body.rating) || body.rating < 1 || body.rating > 5)) {
     return NextResponse.json({ message: 'Rating must be an integer between 1 and 5.' }, { status: 400 });
+  }
+
+  if (body.verified !== undefined && typeof body.verified !== 'boolean') {
+    return NextResponse.json({ message: 'Verification must be a boolean value.' }, { status: 400 });
   }
 
   const updated = await updateTestimonialById(body.id, {
@@ -77,6 +86,7 @@ export async function PATCH(request: Request) {
     testimonial: body.testimonial !== undefined ? sanitize(body.testimonial) : undefined,
     rating: body.rating,
     status: body.status,
+    verified: body.verified,
   }).catch((error) => {
     console.error('Failed to update testimonial from admin API:', error);
     return null;
