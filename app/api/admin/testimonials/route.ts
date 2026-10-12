@@ -59,6 +59,7 @@ export async function PATCH(request: Request) {
     rating?: number;
     status?: TestimonialStatus;
     verified?: boolean;
+    recommendationInvalid?: boolean;
   } | null;
 
   if (!body?.id) {
@@ -77,6 +78,10 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ message: 'Verification must be a boolean value.' }, { status: 400 });
   }
 
+  if (body.recommendationInvalid !== undefined && typeof body.recommendationInvalid !== 'boolean') {
+    return NextResponse.json({ message: 'Recommendation validity must be a boolean value.' }, { status: 400 });
+  }
+
   const updated = await updateTestimonialById(body.id, {
     name: body.name !== undefined ? sanitize(body.name) : undefined,
     jobTitle: body.jobTitle !== undefined ? sanitize(body.jobTitle) : undefined,
@@ -87,6 +92,7 @@ export async function PATCH(request: Request) {
     rating: body.rating,
     status: body.status,
     verified: body.verified,
+    recommendationInvalid: body.recommendationInvalid,
   }).catch((error) => {
     console.error('Failed to update testimonial from admin API:', error);
     return null;

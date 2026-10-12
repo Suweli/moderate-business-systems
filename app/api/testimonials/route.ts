@@ -35,6 +35,7 @@ type TestimonialInput = {
   email?: string;
   message?: string;
   rating?: number;
+  wouldRecommend?: unknown;
   honey?: string;
   startedAt?: number;
 };
@@ -225,6 +226,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Please provide a valid rating between 1 and 5.' }, { status: 400 });
   }
 
+  if (typeof payload.wouldRecommend !== 'boolean') {
+    return NextResponse.json({ message: 'Please select whether you would recommend us.' }, { status: 400 });
+  }
+
   let record: DbTestimonial;
   let notificationWarning: string | null = null;
 
@@ -242,6 +247,7 @@ export async function POST(request: Request) {
       email,
       testimonial: message,
       rating,
+      wouldRecommend: payload.wouldRecommend,
     });
   } catch (error) {
     console.error('Failed to persist testimonial submission:', error);

@@ -17,6 +17,7 @@ type AdminTestimonial = {
   rating: number;
   status: 'pending' | 'approved' | 'rejected';
   verified: boolean;
+  recommendationInvalid: boolean | null;
   dateSubmitted: string;
   dateApproved: string | null;
   lastUpdated: string;
@@ -316,6 +317,18 @@ export default function AdminTestimonialsPage() {
                         >
                           <BadgeCheck className="h-4 w-4" />
                         </button>
+                        <button
+                          className={`rounded-md px-3 py-2 text-xs font-semibold ${item.recommendationInvalid === true ? 'bg-rose-700 text-white' : 'bg-slate-700 text-slate-200'}`}
+                          onClick={() => {
+                            const markingInvalid = item.recommendationInvalid !== true;
+                            if (markingInvalid && !window.confirm('Exclude this testimonial’s recommendation response as spam or invalid?')) return;
+                            void updateItem(item.id, { recommendationInvalid: markingInvalid });
+                          }}
+                          title={item.recommendationInvalid === true ? 'Include recommendation response in the rate' : 'Exclude invalid/spam response from the rate'}
+                          aria-label={item.recommendationInvalid === true ? 'Include recommendation response in the rate' : 'Exclude invalid or spam response from the rate'}
+                        >
+                          {item.recommendationInvalid === true ? 'Excluded' : 'Valid'}
+                        </button>
                         <button className="rounded-md bg-rose-600 p-2" onClick={() => void updateItem(item.id, { status: 'rejected' })} title="Reject">
                           <X className="h-4 w-4" />
                         </button>
@@ -325,7 +338,11 @@ export default function AdminTestimonialsPage() {
                       </div>
                     </div>
                     <p className="mt-3 text-slate-300">{item.testimonial}</p>
-                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-brand-300">{item.status}{item.verified ? ' · Customer relationship verified' : ''}</p>
+                    <p className="mt-2 text-xs uppercase tracking-[0.2em] text-brand-300">
+                      {item.status}
+                      {item.verified ? ' · Customer relationship verified' : ''}
+                      {item.recommendationInvalid === true ? ' · Recommendation response excluded as invalid/spam' : ''}
+                    </p>
                   </article>
                 ))}
               </div>

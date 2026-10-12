@@ -19,6 +19,7 @@ interface FormData {
   email: string;
   message: string;
   rating: number;
+  wouldRecommend: boolean | null;
 }
 
 const StarRating = ({ rating }: { rating: number }) => {
@@ -56,6 +57,7 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
     email: '',
     message: '',
     rating: 5,
+    wouldRecommend: null,
   });
 
   useEffect(() => {
@@ -124,7 +126,7 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
       if (payload.notificationWarning) {
         setSubmissionWarning(payload.notificationWarning);
       }
-      setFormData({ name: '', company: '', position: '', industry: '', email: '', message: '', rating: 5 });
+      setFormData({ name: '', company: '', position: '', industry: '', email: '', message: '', rating: 5, wouldRecommend: null });
       setRating(5);
       setStartedAt(Date.now());
 
@@ -345,6 +347,34 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
                   ))}
                 </div>
               </div>
+
+              <fieldset>
+                <legend className="mb-2 block text-xs font-semibold text-white sm:mb-3 sm:text-sm">
+                  Would you recommend Moderate Business Systems Ltd to others?
+                </legend>
+                <div className="flex flex-wrap gap-4">
+                  {[
+                    { label: 'Yes', value: true },
+                    { label: 'No', value: false },
+                  ].map((option, index) => (
+                    <label
+                      key={option.label}
+                      className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/60 px-4 py-2.5 text-sm text-slate-200 transition hover:border-brand-400 focus-within:ring-2 focus-within:ring-brand-500/30"
+                    >
+                      <input
+                        type="radio"
+                        name="wouldRecommend"
+                        value={String(option.value)}
+                        checked={formData.wouldRecommend === option.value}
+                        onChange={() => setFormData((prev) => ({ ...prev, wouldRecommend: option.value }))}
+                        required={index === 0}
+                        className="h-4 w-4 accent-brand-400"
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
 
               <textarea
                 name="message"
