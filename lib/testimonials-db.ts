@@ -25,6 +25,7 @@ export type PublicTestimonial = {
   position: string;
   testimonial: string;
   rating: number;
+  verified: boolean;
   date: string;
   avatar: string;
   approved?: boolean;
@@ -81,7 +82,7 @@ function toMonthYear(dateISO: string) {
   return new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' }).format(new Date(dateISO));
 }
 
-function toPublicTestimonial(row: Pick<DbTestimonial, 'id' | 'name' | 'company' | 'jobTitle' | 'testimonial' | 'rating' | 'status' | 'dateSubmitted' | 'lastUpdated' | 'industry'>): PublicTestimonial {
+function toPublicTestimonial(row: Pick<DbTestimonial, 'id' | 'name' | 'company' | 'jobTitle' | 'testimonial' | 'rating' | 'status' | 'verified' | 'dateSubmitted' | 'lastUpdated' | 'industry'>): PublicTestimonial {
   return {
     id: row.id,
     name: row.name,
@@ -89,6 +90,7 @@ function toPublicTestimonial(row: Pick<DbTestimonial, 'id' | 'name' | 'company' 
     position: row.jobTitle,
     testimonial: row.testimonial,
     rating: row.rating,
+    verified: row.verified,
     date: toMonthYear(row.dateSubmitted),
     avatar: initialsFromName(row.name),
     approved: row.status === 'approved',
@@ -180,11 +182,12 @@ export async function readApprovedTestimonialsPage(pageInput: number, limitInput
     testimonial: string;
     rating: number;
     status: TestimonialStatus;
+    verified: boolean;
     date_submitted: string;
     date_approved: string | null;
     last_updated: string;
   }>(
-    `SELECT id, name, job_title, company, industry, testimonial, rating, status, date_submitted, date_approved, last_updated
+    `SELECT id, name, job_title, company, industry, testimonial, rating, status, verified, date_submitted, date_approved, last_updated
      FROM testimonials
      WHERE status = 'approved'
      ORDER BY date_approved DESC NULLS LAST, date_submitted DESC
@@ -205,6 +208,7 @@ export async function readApprovedTestimonialsPage(pageInput: number, limitInput
       testimonial: row.testimonial,
       rating: row.rating,
       status: row.status,
+      verified: row.verified,
       dateSubmitted: row.date_submitted,
       lastUpdated: row.last_updated,
     }),

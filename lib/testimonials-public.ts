@@ -5,6 +5,7 @@ export type PublicTestimonial = {
   position: string;
   testimonial: string;
   rating: number;
+  verified: boolean;
   date: string;
   avatar: string;
   approved?: boolean;

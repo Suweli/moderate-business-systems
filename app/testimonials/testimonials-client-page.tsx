@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import AOS from 'aos';
 import 'aos/dist/aos.css';
-import { Star, MessageSquare, Send } from 'lucide-react';
+import { BadgeCheck, Star, MessageSquare, Send } from 'lucide-react';
 import SiteShell from '../../components/site-shell';
 import { type ApprovedTestimonialsPage } from '../../lib/testimonials-public';
 
@@ -222,8 +222,14 @@ export default function TestimonialsClientPage({ initialData }: { initialData: A
             ) : (
               testimonialItems.map((testimonial, index) => (
                 <div key={testimonial.id} className="rounded-3xl border border-slate-800 bg-slate-900/80 p-8 transition hover:border-brand-400/50" data-aos="fade-up" data-aos-delay={index * 100}>
-                  <div className="mb-4">
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <StarRating rating={testimonial.rating} />
+                    {testimonial.verified === true && (
+                      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2.5 py-1 text-xs font-medium text-emerald-300">
+                        <BadgeCheck aria-hidden="true" className="h-3.5 w-3.5" />
+                        Verified Customer
+                      </span>
+                    )}
                   </div>
 
                   <p className="mb-6 leading-relaxed text-slate-400">{testimonial.testimonial}</p>
