@@ -46,7 +46,7 @@ export default function AdminTestimonialsPage() {
   const [status, setStatus] = useState<StatusFilter>('all');
   const [items, setItems] = useState<AdminTestimonial[]>([]);
   const [stats, setStats] = useState<DashboardStats>(emptyStats);
-  const [username, setUsername] = useState('admin');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [editing, setEditing] = useState<AdminTestimonial | null>(null);
 
